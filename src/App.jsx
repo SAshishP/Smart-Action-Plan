@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import Splash from './screens/Splash.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Dashboard from './screens/Dashboard.jsx'
+import InstallGuide, { isStandalone } from './screens/InstallGuide.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 
 export default function App() {
   const [profile, setProfile] = useState(() => getProfile())
   const [splashDone, setSplashDone] = useState(false)
+  const [installSkipped, setInstallSkipped] = useState(false)
 
   // Gender-adaptive theme: swaps the accent palette app-wide
   useEffect(() => {
@@ -16,6 +18,10 @@ export default function App() {
       g === 'female' ? 'female' : g === 'other' ? 'other' : 'male'
     )
   }, [profile])
+
+  if (!isStandalone() && !installSkipped) {
+    return <InstallGuide onSkip={() => setInstallSkipped(true)} />
+  }
 
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
 
