@@ -1,5 +1,7 @@
-// Phase 1 storage: everything lives on the device (localStorage).
-// Phase 2 swaps these same functions to Supabase, so no screen code changes.
+// Storage layer: writes locally first (instant, works offline),
+// then syncs to the cloud in the background when logged in.
+
+import { pushProfile, pushDay } from './cloud.js'
 
 const PROFILE_KEY = 'sap_profile_v1'
 const DAY_PREFIX = 'sap_day_'
@@ -18,9 +20,8 @@ function write(key, value) {
     localStorage.setItem(key, JSON.stringify(value))
     return true
   } catch (e) {
-    // localStorage is full (photos are big) — fail loudly instead of crashing silently
     console.error('Storage full or blocked:', e)
-    alert('Storage is full on this device. Photos will sync to the cloud in the next update — for now, try smaller photos.')
+    alert('Storage is full on this device. Your data still syncs to the cloud when online.')
     return false
   }
 }
@@ -29,8 +30,10 @@ export function getProfile() {
   return read(PROFILE_KEY, null)
 }
 
-export function saveProfile(profile) {
-  return write(PROFILE_KEY, profile)
+export function saveProfile(profile, opts = {}) {
+  const ok = write(PROFILE_KEY, profile)
+  if (!opts.localOnly) pushProfile(profile).catch(() => {})
+  return ok
 }
 
 export function todayKey() {
@@ -41,21 +44,23 @@ export function todayKey() {
 }
 
 const EMPTY_DAY = {
-  water: 0,          // glasses (250 ml)
+  water: 0,
   steps: 0,
   sleepHours: '',
   calsIn: 0,
   calsOut: 0,
-  todos: [],         // { id, text, done }
-  planDone: {},      // { [planItemId]: true }
+  todos: [],
+  planDone: {},
 }
 
 export function getDay(key = todayKey()) {
   return { ...EMPTY_DAY, ...read(DAY_PREFIX + key, {}) }
 }
 
-export function saveDay(data, key = todayKey()) {
-  return write(DAY_PREFIX + key, data)
+export function saveDay(data, key = todayKey(), opts = {}) {
+  const ok = write(DAY_PREFIX + key, data)
+  if (!opts.localOnly) pushDay(key, data).catch(() => {})
+  return ok
 }
 
 export function ageFromDob(dob) {
@@ -71,7 +76,6 @@ export function ageFromDob(dob) {
   return age >= 0 && age < 130 ? age : ''
 }
 
-// Water goal: ~33 ml per kg of body weight, in 250 ml glasses, min 8
 export function waterGoal(profile) {
   const kg = Number(profile?.weight)
   if (!kg || kg <= 0) return 8

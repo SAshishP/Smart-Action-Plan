@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { getDay, saveDay, todayKey, waterGoal, getProfile, saveProfile } from '../lib/store.js'
+import { pullDay } from '../lib/cloud.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
 
 function greeting() {
@@ -16,10 +17,25 @@ function cyclePhase(dayOfCycle) {
   return 'Luteal phase — go gentler, expect cravings, magnesium helps.'
 }
 
-export default function Dashboard({ profile }) {
+export default function Dashboard({ profile, onSignOut }) {
   const [day, setDay] = useState(() => getDay())
   const [todoText, setTodoText] = useState('')
   const [lastPeriod, setLastPeriod] = useState(profile.lastPeriodStart || '')
+
+  // If today's data already exists in the cloud (e.g. from another phone), merge it in
+  useEffect(() => {
+    let alive = true
+    pullDay(todayKey()).then((cloudDay) => {
+      if (alive && cloudDay) {
+        setDay((local) => {
+          const merged = { ...local, ...cloudDay }
+          saveDay(merged, todayKey(), { localOnly: true })
+          return merged
+        })
+      }
+    })
+    return () => { alive = false }
+  }, [])
 
   const plan = useMemo(() => generatePlan(profile), [profile])
   const goal = waterGoal(profile)
@@ -72,7 +88,7 @@ export default function Dashboard({ profile }) {
   }
 
   return (
-    <div className="screen">
+    <div className={'screen' + (onSignOut ? ' with-tabbar' : '')}>
       <header className="dash-head">
         <div className="date">{dateLabel}</div>
         <h1>{greeting()}, {String(profile.name || '').split(' ')[0]}</h1>
@@ -196,6 +212,11 @@ export default function Dashboard({ profile }) {
       <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
         Workout · Diet · Skin & Hair · Style modules unlock in the next update.
       </p>
+      {onSignOut && (
+        <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={onSignOut}>
+          Sign out
+        </button>
+      )}
     </div>
   )
 }

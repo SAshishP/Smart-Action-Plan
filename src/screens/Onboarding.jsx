@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ageFromDob } from '../lib/store.js'
+import { compressImage } from '../lib/img.js'
 
 const PHOTO_SLOTS = [
   { key: 'body_front', label: 'Body · Front' },
@@ -15,34 +16,6 @@ const PHOTO_SLOTS = [
   { key: 'hair_back', label: 'Hair · Back' },
   { key: 'hair_top', label: 'Hair · Top' },
 ]
-
-// Compress a photo on-device before saving (~60–120 KB each)
-function compressImage(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      try {
-        const MAX = 720
-        const scale = Math.min(1, MAX / Math.max(img.width, img.height))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.round(img.width * scale)
-        canvas.height = Math.round(img.height * scale)
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/jpeg', 0.6))
-      } catch (e) {
-        reject(e)
-      } finally {
-        URL.revokeObjectURL(url)
-      }
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Could not read that image.'))
-    }
-    img.src = url
-  })
-}
 
 const STEPS = ['Consent', 'Basics', 'Body', 'Health', 'Lifestyle', 'Socials', 'Photos']
 
@@ -125,9 +98,11 @@ export default function Onboarding({ onDone }) {
           <div className="consent-box">
             <strong>Before you start — please read this.</strong>
             <p style={{ marginTop: 8 }}>
-              SAP is a personal app run by Ash (the owner). To give you
+              SAP is a personal app run by one person (the owner). To give you
               plans and progress analysis, it stores your profile details,
-              health info, daily logs you add. No one can ever see your data.
+              health info, daily logs, and the photos you add. <strong>The app
+              owner can see all data you put in this app</strong>, including
+              photos. Other users can never see your data.
             </p>
             <p style={{ marginTop: 8 }}>
               SAP gives lifestyle suggestions only. It is <strong>not medical
