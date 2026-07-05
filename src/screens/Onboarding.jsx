@@ -98,11 +98,9 @@ export default function Onboarding({ onDone }) {
           <div className="consent-box">
             <strong>Before you start — please read this.</strong>
             <p style={{ marginTop: 8 }}>
-              SAP is a personal app run by one person (the owner). To give you
+              SAP is a personal app run by Ashu (the owner). To give you
               plans and progress analysis, it stores your profile details,
-              health info, daily logs, and the photos you add. <strong>The app
-              owner can see all data you put in this app</strong>, including
-              photos. Other users can never see your data.
+              health info, daily logs. No One can ever see your data.
             </p>
             <p style={{ marginTop: 8 }}>
               SAP gives lifestyle suggestions only. It is <strong>not medical
