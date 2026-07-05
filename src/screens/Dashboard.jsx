@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getDay, saveDay, todayKey, waterGoal, getProfile, saveProfile } from '../lib/store.js'
 import { pullDay } from '../lib/cloud.js'
+import { enablePush } from '../lib/push.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
 
 function greeting() {
@@ -74,17 +75,14 @@ export default function Dashboard({ profile, onSignOut }) {
   const doneCount = plan.filter((p) => day.planDone[p.id]).length
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0 }
 
+  const [pushMsg, setPushMsg] = useState('')
+  const [pushBusy, setPushBusy] = useState(false)
+
   async function enableReminders() {
-    if (!('Notification' in window)) {
-      alert('This device does not support notifications in this mode. On iPhone, first add SAP to your Home Screen, then open it from there.')
-      return
-    }
-    const perm = await Notification.requestPermission()
-    if (perm === 'granted') {
-      new Notification('SAP reminders are on ✅', {
-        body: 'Push reminders for your full daily plan arrive in the next update.',
-      })
-    }
+    setPushBusy(true)
+    const result = await enablePush()
+    setPushMsg(result.message)
+    setPushBusy(false)
   }
 
   return (
@@ -206,9 +204,12 @@ export default function Dashboard({ profile, onSignOut }) {
         </div>
       </section>
 
-      <button className="ghost" type="button" onClick={enableReminders}>
-        🔔 Enable reminders on this phone
+      <button className="ghost" type="button" onClick={enableReminders} disabled={pushBusy}>
+        {pushBusy ? 'Setting up…' : '🔔 Enable reminders on this phone'}
       </button>
+      {pushMsg && (
+        <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{pushMsg}</p>
+      )}
       <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
         Workout · Diet · Skin & Hair · Style modules unlock in the next update.
       </p>

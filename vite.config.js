@@ -6,8 +6,16 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      // registerType only affects generateSW builds — under injectManifest,
+      // src/sw.js's own skipWaiting()/clients.claim() calls are what make
+      // updates take effect immediately; main.jsx reloads the tab on top of that.
       includeAssets: ['apple-touch-icon.png'],
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,png,svg,woff2}']
+      },
       manifest: {
         name: 'Smart Action Plan',
         short_name: 'SAP',
@@ -22,9 +30,6 @@ export default defineConfig({
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,woff2}']
       }
     })
   ]
