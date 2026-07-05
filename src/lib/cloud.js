@@ -70,6 +70,28 @@ export async function uploadInitialPhotos(profile) {
   }
 }
 
+// Upload one dated progress photo (e.g. weekly body front)
+export async function uploadProgressPhoto(dataUrl, slot, dateKey) {
+  const u = await currentUser()
+  if (!u || !dataUrl) return
+  try {
+    const blob = await (await fetch(dataUrl)).blob()
+    const path = `${u.id}/${slot}_${dateKey}.jpg`
+    const { error } = await supabase.storage
+      .from('photos')
+      .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+    if (!error) {
+      await supabase.from('photos').insert({
+        user_id: u.id, slot, taken_on: dateKey, storage_path: path,
+      })
+    } else {
+      console.error('progress upload:', error.message)
+    }
+  } catch (e) {
+    console.error('progress upload:', e)
+  }
+}
+
 export async function signOutEverywhere() {
   if (supabase) await supabase.auth.signOut()
   // Clear this phone's cache so the next person can't see the previous user

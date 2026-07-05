@@ -25,11 +25,16 @@ Deno.serve(async (req) => {
     if (!key) return json({ error: 'AI key not set on the server yet.' }, 500)
 
     const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.5-flash'
-    const { messages = [], profile = {}, image } = await req.json()
+    const { messages = [], profile = {}, image, images } = await req.json()
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return json({ error: 'No message received.' }, 400)
     }
+
+    // Accept either a single image or an array (e.g. initial vs latest photo)
+    const imageList: Array<{ mime?: string; data: string }> =
+      Array.isArray(images) ? images.filter((i) => i?.data) : image?.data ? [image] : []
+    if (imageList.length > 4) imageList.length = 4
 
     const system = [
       'You are the personal assistant inside SAP (Smart Action Plan), a private',
@@ -58,13 +63,15 @@ Deno.serve(async (req) => {
       parts: [{ text: String(m.text || '') }] as Part[],
     }))
 
-    // Attach the photo (if any) to the latest user message
-    if (image?.data) {
+    // Attach the photo(s) to the latest user message
+    if (imageList.length) {
       const last = contents[contents.length - 1]
       if (last?.role === 'user') {
-        last.parts.push({
-          inline_data: { mime_type: image.mime || 'image/jpeg', data: image.data },
-        })
+        for (const img of imageList) {
+          last.parts.push({
+            inline_data: { mime_type: img.mime || 'image/jpeg', data: img.data },
+          })
+        }
       }
     }
 

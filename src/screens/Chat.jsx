@@ -1,24 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '../lib/supabase.js'
+import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
-
-// A trimmed profile keeps the AI personal without sending photos every time
-function profileSummary(p) {
-  if (!p) return {}
-  const { name, dob, gender, height, weight, goals, dietType, bodyType,
-    allergies, medications, foodsToAvoid, skinSensitivity, activityLevel,
-    lifestyle, ethnicity, location, wakeTime, sleepTime, workStart, workEnd } = p
-  return { name, dob, gender, height, weight, goals, dietType, bodyType,
-    allergies, medications, foodsToAvoid, skinSensitivity, activityLevel,
-    lifestyle, ethnicity, location, wakeTime, sleepTime, workStart, workEnd }
-}
 
 export default function Chat({ profile }) {
   const [messages, setMessages] = useState([
     { role: 'model', text: `Hi ${String(profile?.name || '').split(' ')[0] || 'there'}! I'm your SAP assistant. Ask me anything — meals, workouts, skin care, your plan — or send a photo of your food and I'll estimate the calories.` },
   ])
   const [input, setInput] = useState('')
-  const [image, setImage] = useState(null) // dataURL
+  const [image, setImage] = useState(null)
   const [busy, setBusy] = useState(false)
   const endRef = useRef(null)
 
@@ -47,36 +36,12 @@ export default function Chat({ profile }) {
     setImage(null)
     setBusy(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('You are signed out — sign in again to chat.')
-      const body = {
-        profile: profileSummary(profile),
-        // last 12 turns keep the AI context-aware without huge requests
+      const reply = await askAI({
+        profile,
         messages: history.slice(-12).map((m) => ({ role: m.role, text: m.text })),
-      }
-      if (userMsg.img) {
-        body.image = { mime: 'image/jpeg', data: userMsg.img.split(',')[1] }
-      }
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify(body),
-        }
-      )
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error(
-          res.status === 429
-            ? 'The free AI limit for today is reached — it resets tomorrow.'
-            : data.error || 'The assistant had a problem. Try again.'
-        )
-      }
-      setMessages((m) => [...m, { role: 'model', text: data.reply || '…' }])
+        images: userMsg.img ? [dataUrlToImage(userMsg.img)] : undefined,
+      })
+      setMessages((m) => [...m, { role: 'model', text: reply }])
     } catch (e) {
       setMessages((m) => [...m, { role: 'model', text: `⚠️ ${e.message}` }])
     } finally {

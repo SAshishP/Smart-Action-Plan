@@ -86,7 +86,7 @@ export default function Dashboard({ profile, onSignOut }) {
   }
 
   return (
-    <div className={'screen' + (onSignOut ? ' with-tabbar' : '')}>
+    <div className="screen with-tabbar">
       <header className="dash-head">
         <div className="date">{dateLabel}</div>
         <h1>{greeting()}, {String(profile.name || '').split(' ')[0]}</h1>
@@ -211,7 +211,7 @@ export default function Dashboard({ profile, onSignOut }) {
         <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{pushMsg}</p>
       )}
       <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
-        Workout · Diet · Skin & Hair · Style modules unlock in the next update.
+        Diet · Skin & Hair · Style modules unlock in the next update.
       </p>
       {onSignOut && (
         <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={onSignOut}>
