@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ageFromDob } from '../lib/store.js'
 import { compressImage } from '../lib/img.js'
 
@@ -39,6 +39,18 @@ export default function Onboarding({ onDone }) {
   const set = (key) => (e) => setF((old) => ({ ...old, [key]: e.target.value }))
   const age = ageFromDob(f.dob)
 
+  // Without this, the phone's back button/gesture has no in-app history to
+  // pop and just exits the whole app mid-flow. Push a history entry per step
+  // so back moves through onboarding instead of closing it.
+  useEffect(() => {
+    window.history.replaceState({ step: 0 }, '')
+    const onPopState = (e) => {
+      if (typeof e.state?.step === 'number') setStep(e.state.step)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   function useMyLocation() {
     if (!navigator.geolocation) {
       setError('Location is not available on this device — type it instead.')
@@ -78,7 +90,9 @@ export default function Onboarding({ onDone }) {
       if (!f.gender) return setError('Select a gender — the app adapts to it.')
     }
     if (step < STEPS.length - 1) {
-      setStep(step + 1)
+      const nextStep = step + 1
+      window.history.pushState({ step: nextStep }, '')
+      setStep(nextStep)
       window.scrollTo(0, 0)
     } else {
       onDone(f)
@@ -257,7 +271,7 @@ export default function Onboarding({ onDone }) {
                 {f.photos[slot.key]
                   ? <img src={f.photos[slot.key]} alt={slot.label} />
                   : <span>{slot.label}<br />＋</span>}
-                <input type="file" accept="image/*" capture="environment"
+                <input type="file" accept="image/*"
                   onChange={(e) => onPhoto(slot.key, e)} aria-label={slot.label} />
               </div>
             ))}
@@ -269,7 +283,7 @@ export default function Onboarding({ onDone }) {
 
       <div className="row" style={{ marginTop: 18 }}>
         {step > 0 && (
-          <button className="ghost" type="button" onClick={() => setStep(step - 1)}>Back</button>
+          <button className="ghost" type="button" onClick={() => window.history.back()}>Back</button>
         )}
         <button type="button" onClick={next}>
           {step === STEPS.length - 1 ? 'Create my profile' : 'Continue'}
