@@ -301,3 +301,14 @@ button.mini {
   margin-top: 12px; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px; line-height: 1.55; white-space: pre-wrap;
 }
+
+/* ---- Phase 4: diet ---- */
+.tabbar button { font-size: 12.5px; padding: 10px 4px; }
+.chip-x { cursor: pointer; }
+.chip-add {
+  background: var(--accent-soft); color: var(--accent);
+  border-color: var(--accent); cursor: pointer; margin: 3px 4px 3px 0;
+}
+.ing-list { margin: 6px 0 10px 18px; display: grid; gap: 3px; }
+.ing-list .missing { color: var(--accent); }
+.ing-list .missing em { color: var(--text-dim); font-style: normal; font-size: 12px; }

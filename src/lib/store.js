@@ -49,6 +49,7 @@ const EMPTY_DAY = {
   sleepHours: '',
   calsIn: 0,
   calsOut: 0,
+  meals: [],
   todos: [],
   planDone: {},
 }
