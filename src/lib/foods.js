@@ -27,3 +27,16 @@ export async function searchWorldFoods(query) {
     }))
     .filter((x) => x.name)
 }
+
+// Same open data family, but for cosmetics / skin / hair products (free, no key)
+export async function searchBeautyProducts(query) {
+  const url =
+    'https://world.openbeautyfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=8' +
+    '&fields=product_name,brands&search_terms=' + encodeURIComponent(query)
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('The product database is unreachable right now — try again in a minute.')
+  const data = await res.json()
+  return (data.products || [])
+    .map((p) => ({ name: [p.brands, p.product_name].filter(Boolean).join(' · ').trim() }))
+    .filter((x) => x.name)
+}

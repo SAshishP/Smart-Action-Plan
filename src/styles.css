@@ -312,3 +312,9 @@ button.mini {
 .ing-list { margin: 6px 0 10px 18px; display: grid; gap: 3px; }
 .ing-list .missing { color: var(--accent); }
 .ing-list .missing em { color: var(--text-dim); font-style: normal; font-size: 12px; }
+
+/* ---- Phase 5: care ---- */
+.tabbar { gap: 4px; padding-left: 8px; padding-right: 8px; }
+.tabbar button { font-size: 11px; padding: 9px 2px; }
+.find-links { display: flex; gap: 14px; margin-top: 5px; }
+.find-links a { color: var(--accent); text-decoration: none; }

@@ -211,7 +211,7 @@ export default function Dashboard({ profile, onSignOut }) {
         <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{pushMsg}</p>
       )}
       <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
-        Skin & Hair · Style modules unlock in the next update.
+        Style module unlocks in the next update.
       </p>
       {onSignOut && (
         <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={onSignOut}>
