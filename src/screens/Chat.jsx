@@ -74,7 +74,7 @@ export default function Chat({ profile }) {
       <div className="chat-input">
         <label className="attach-btn" aria-label="Attach a photo">
           📷
-          <input type="file" accept="image/*" capture="environment" onChange={attach} />
+          <input type="file" accept="image/*" onChange={attach} />
         </label>
         <input
           value={input}

@@ -7,6 +7,7 @@ import Chat from './screens/Chat.jsx'
 import Workout from './screens/Workout.jsx'
 import Diet from './screens/Diet.jsx'
 import Care from './screens/Care.jsx'
+import Style from './screens/Style.jsx'
 import InstallGuide, { isStandalone } from './screens/InstallGuide.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
@@ -87,12 +88,14 @@ export default function App() {
       {tab === 'workout' && <Workout profile={profile} />}
       {tab === 'diet' && <Diet profile={profile} />}
       {tab === 'care' && <Care profile={profile} />}
+      {tab === 'style' && <Style profile={profile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       <nav className="tabbar">
         <button type="button" className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>🏠 Home</button>
         <button type="button" className={tab === 'workout' ? 'active' : ''} onClick={() => setTab('workout')}>💪 Workout</button>
         <button type="button" className={tab === 'diet' ? 'active' : ''} onClick={() => setTab('diet')}>🍽️ Diet</button>
         <button type="button" className={tab === 'care' ? 'active' : ''} onClick={() => setTab('care')}>🧴 Care</button>
+        <button type="button" className={tab === 'style' ? 'active' : ''} onClick={() => setTab('style')}>👔 Style</button>
         {cloudReady && (
           <button type="button" className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>✨ Assistant</button>
         )}

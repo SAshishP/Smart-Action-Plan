@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { buildSkinRoutine, buildHairRoutine, shelfMatch, SKIN_TYPES, HAIR_TYPES, POROSITY } from '../lib/care.js'
 import { getWeather } from '../lib/weather.js'
 import { searchBeautyProducts } from '../lib/foods.js'
+import { nearbyUrl, onlineUrl } from '../lib/shop.js'
 import { getProfile, saveProfile, todayKey } from '../lib/store.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
@@ -12,14 +13,6 @@ const FIND_QUERY = {
   moisturizer: 'face moisturizer', shampoo: 'shampoo', conditioner: 'hair conditioner',
   oil: 'hair oil', 'leave-in': 'leave-in conditioner curl cream',
 }
-
-function nearbyUrl(q, location) {
-  const loc = String(location || '').trim()
-  const m = loc.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/)
-  if (m) return `https://www.google.com/maps/search/${encodeURIComponent(q + ' store')}/@${m[1]},${m[2]},14z`
-  return `https://www.google.com/maps/search/${encodeURIComponent(q + ' store near ' + (loc || 'me'))}`
-}
-const onlineUrl = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}`
 
 function StepRow({ s, shelf, location, dandruff }) {
   let q = FIND_QUERY[s.key] || s.key
