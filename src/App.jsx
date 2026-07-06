@@ -8,6 +8,7 @@ import Workout from './screens/Workout.jsx'
 import Diet from './screens/Diet.jsx'
 import Care from './screens/Care.jsx'
 import Style from './screens/Style.jsx'
+import Analysis from './screens/Analysis.jsx'
 import InstallGuide, { isStandalone } from './screens/InstallGuide.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
@@ -58,6 +59,15 @@ export default function App() {
     setTab('home')
   }
 
+  // Workout/Diet/Care/Style/Analysis each save profile edits (setup fields,
+  // wardrobe, "why", etc.) straight to storage without lifting state up —
+  // re-read on every tab switch so those edits show up elsewhere immediately
+  // instead of only after a full reload.
+  function goTo(id) {
+    setProfile(getProfile())
+    setTab(id)
+  }
+
   if (!isStandalone() && !installSkipped) {
     return <InstallGuide onSkip={() => setInstallSkipped(true)} />
   }
@@ -89,16 +99,24 @@ export default function App() {
       {tab === 'diet' && <Diet profile={profile} />}
       {tab === 'care' && <Care profile={profile} />}
       {tab === 'style' && <Style profile={profile} />}
+      {tab === 'stats' && <Analysis profile={profile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       <nav className="tabbar">
-        <button type="button" className={tab === 'home' ? 'active' : ''} onClick={() => setTab('home')}>🏠 Home</button>
-        <button type="button" className={tab === 'workout' ? 'active' : ''} onClick={() => setTab('workout')}>💪 Workout</button>
-        <button type="button" className={tab === 'diet' ? 'active' : ''} onClick={() => setTab('diet')}>🍽️ Diet</button>
-        <button type="button" className={tab === 'care' ? 'active' : ''} onClick={() => setTab('care')}>🧴 Care</button>
-        <button type="button" className={tab === 'style' ? 'active' : ''} onClick={() => setTab('style')}>👔 Style</button>
-        {cloudReady && (
-          <button type="button" className={tab === 'ai' ? 'active' : ''} onClick={() => setTab('ai')}>✨ Assistant</button>
-        )}
+        {[
+          ['home', '🏠', 'Home'],
+          ['workout', '💪', 'Workout'],
+          ['diet', '🍽️', 'Diet'],
+          ['care', '🧴', 'Care'],
+          ['style', '👔', 'Style'],
+          ['stats', '📊', 'Stats'],
+          ...(cloudReady ? [['ai', '✨', 'Assistant']] : []),
+        ].map(([id, ic, lbl]) => (
+          <button key={id} type="button" className={tab === id ? 'active' : ''}
+            aria-label={lbl} onClick={() => goTo(id)}>
+            <span className="ic">{ic}</span>
+            <span className="lbl">{lbl}</span>
+          </button>
+        ))}
       </nav>
     </>
   )

@@ -96,6 +96,7 @@ export default function Dashboard({ profile, onSignOut }) {
       <section className="card">
         <h2>Motivation for today</h2>
         <p className="quote">“{quoteOfTheDay()}”</p>
+        {profile.why && <p className="dim small" style={{ marginTop: 8 }}>Your why: {profile.why}</p>}
       </section>
 
       <section className="card">

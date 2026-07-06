@@ -339,3 +339,12 @@ button.mini {
 
 /* 6 tabs: keep labels on one line on narrow phones */
 .tabbar button { white-space: nowrap; font-size: 10.5px; padding: 9px 0; }
+
+/* ---- Phase 7: analysis + 7-tab bar ---- */
+.tabbar button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 0; }
+.tabbar button .ic { font-size: 17px; line-height: 1; }
+.tabbar button .lbl { font-size: 9px; display: none; }
+.tabbar button.active .lbl { display: block; }
+.strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.strip figure { margin: 0; flex: none; text-align: center; }
+.strip img { height: 130px; width: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
