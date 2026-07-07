@@ -123,6 +123,7 @@ export default function Workout({ profile }) {
       <section className="card">
         <h2>Target muscles</h2>
         <Body3D
+          gender={profile.gender}
           primary={openEx ? openEx.primary : []}
           secondary={openEx ? openEx.secondary : []}
           onPick={(id) => setPicked(id)}

@@ -49,9 +49,12 @@ const EMPTY_DAY = {
   sleepHours: '',
   calsIn: 0,
   calsOut: 0,
-  meals: [],
   todos: [],
   planDone: {},
+  meals: [],        // [{ id, name, kcal }]
+  weightKg: '',     // optional daily weigh-in
+  mood: '',         // cycle/mood log
+  symptoms: [],     // cycle symptom log
 }
 
 export function getDay(key = todayKey()) {

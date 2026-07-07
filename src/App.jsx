@@ -9,6 +9,7 @@ import Diet from './screens/Diet.jsx'
 import Care from './screens/Care.jsx'
 import Style from './screens/Style.jsx'
 import Analysis from './screens/Analysis.jsx'
+import Inventory from './screens/Inventory.jsx'
 import InstallGuide, { isStandalone } from './screens/InstallGuide.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
@@ -21,6 +22,7 @@ export default function App() {
   const [session, setSession] = useState(cloudReady ? undefined : null)
   const [profile, setProfile] = useState(() => getProfile())
   const [tab, setTab] = useState('home')
+  const [prevTab, setPrevTab] = useState('home')
 
   // Watch login state (cloud mode only)
   useEffect(() => {
@@ -67,6 +69,10 @@ export default function App() {
     setProfile(getProfile())
     setTab(id)
   }
+  function openInventory() {
+    setPrevTab(tab)
+    goTo('inv')
+  }
 
   if (!isStandalone() && !installSkipped) {
     return <InstallGuide onSkip={() => setInstallSkipped(true)} />
@@ -96,9 +102,10 @@ export default function App() {
     <>
       {tab === 'home' && <Dashboard profile={profile} onSignOut={cloudReady ? handleSignOut : null} />}
       {tab === 'workout' && <Workout profile={profile} />}
-      {tab === 'diet' && <Diet profile={profile} />}
-      {tab === 'care' && <Care profile={profile} />}
+      {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
+      {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} />}
       {tab === 'style' && <Style profile={profile} />}
+      {tab === 'inv' && <Inventory profile={profile} onBack={() => goTo(prevTab)} />}
       {tab === 'stats' && <Analysis profile={profile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       <nav className="tabbar">
@@ -108,6 +115,7 @@ export default function App() {
           ['diet', '🍽️', 'Diet'],
           ['care', '🧴', 'Care'],
           ['style', '👔', 'Style'],
+          ['inv', '🎒', 'Items'],
           ['stats', '📊', 'Stats'],
           ...(cloudReady ? [['ai', '✨', 'Assistant']] : []),
         ].map(([id, ic, lbl]) => (

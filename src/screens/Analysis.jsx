@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import MiniChart from '../components/MiniChart.jsx'
 import { getHistory } from '../lib/history.js'
 import { computeStats, insights, affirmationOfTheDay } from '../lib/analytics.js'
-import { waterGoal, getProfile, saveProfile } from '../lib/store.js'
+import { waterGoal, getProfile, saveProfile, getDay, saveDay, todayKey } from '../lib/store.js'
 import { calorieTarget } from '../lib/nutrition.js'
 import { askAI } from '../lib/ai.js'
+import { computeGame, earnedBadges } from '../lib/game.js'
 
 export default function Analysis({ profile }) {
   const [p, setP] = useState(profile)
@@ -14,6 +15,18 @@ export default function Analysis({ profile }) {
   const [whySaved, setWhySaved] = useState(false)
   const [review, setReview] = useState('')
   const [reviewBusy, setReviewBusy] = useState(false)
+  const [weightInput, setWeightInput] = useState('')
+  const [weightMsg, setWeightMsg] = useState('')
+
+  function logWeight() {
+    const kg = parseFloat(weightInput)
+    if (!kg || kg < 20 || kg > 400) { setWeightMsg('Enter a weight in kg (e.g. 72.4).'); return }
+    const d = getDay()
+    saveDay({ ...d, weightKg: kg }, todayKey())
+    setWeightMsg(`Logged ${kg} kg for today ✓`)
+    setWeightInput('')
+    getHistory(30).then(setHistory)
+  }
 
   useEffect(() => {
     let alive = true
@@ -25,7 +38,13 @@ export default function Analysis({ profile }) {
   const calTarget = calorieTarget(p)
   const series = history ? history.slice(-range) : []
   const stats = history ? computeStats(history.slice(-range)) : null
+  // Streak is always computed from the FULL history, not the range slice —
+  // otherwise "current streak" would read differently here than on the
+  // Dashboard (which also uses the full 30-day window) purely because of
+  // which chart range happens to be selected.
+  const fullStats = history ? computeStats(history) : null
   const tips = history ? insights(history.slice(-range), { waterGoal: wGoal, calTarget }) : []
+  const game = history ? computeGame(history, { waterGoal: wGoal }) : null
 
   function saveWhy() {
     const np = { ...getProfile(), why: why.trim() }
@@ -101,7 +120,7 @@ export default function Analysis({ profile }) {
           </div>
 
           <div className="chips">
-            <span className="chip">🔥 {stats.streak}-day streak</span>
+            <span className="chip">🔥 {fullStats.streak}-day streak</span>
             <span className="chip">📅 {stats.daysLogged}/{range} logged</span>
             {stats.avgSleep > 0 && <span className="chip">😴 {stats.avgSleep}h avg</span>}
           </div>
@@ -129,6 +148,41 @@ export default function Analysis({ profile }) {
           <section className="card">
             <h2>✅ Daily-plan items done</h2>
             <MiniChart data={chart('planDone')} />
+          </section>
+
+          <section className="card">
+            <h2>⚖️ Weight {stats.lastWeight ? <span className="dim small">now {stats.lastWeight} kg</span> : null}</h2>
+            {series.some((d) => d.weightKg > 0) && (
+              <MiniChart data={series.filter((d) => d.weightKg > 0).map((d) => ({ label: d.label, value: d.weightKg }))} unit="kg" />
+            )}
+            <div className="todo-add">
+              <input type="number" inputMode="decimal" step="0.1" value={weightInput}
+                onChange={(e) => setWeightInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && logWeight()}
+                placeholder="Today's weight (kg)" />
+              <button type="button" onClick={logWeight}>Log</button>
+            </div>
+            {weightMsg && <p className="dim small" style={{ marginTop: 8 }}>{weightMsg}</p>}
+            <p className="dim small" style={{ marginTop: 8 }}>Weigh in 1–2× a week, same time of day. Trends beat daily noise.</p>
+          </section>
+
+          <section className="card">
+            <h2>🏅 Badges</h2>
+            <div className="badge-grid">
+              {earnedBadges(history.slice(-30), p, { waterGoal: wGoal }, fullStats).map((b) => (
+                <div key={b.id} className={'badge-tile' + (b.earned ? ' earned' : '')} title={b.how}>
+                  <span className="be">{b.emoji}</span>
+                  <span className="bn">{b.name}</span>
+                  <span className="bh dim">{b.how}</span>
+                </div>
+              ))}
+            </div>
+            {game && (
+              <p className="small" style={{ marginTop: 10 }}>
+                Total <strong>{game.xp.toLocaleString()} XP</strong> · Level {game.level} <strong>{game.title}</strong>
+                {game.maxed ? ' — max level reached 🏆' : ` — ${game.toNext} XP to ${game.nextTitle}.`}
+              </p>
+            )}
           </section>
 
           <section className="card">

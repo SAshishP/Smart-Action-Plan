@@ -3,6 +3,9 @@ import { getDay, saveDay, todayKey, waterGoal, getProfile, saveProfile } from '.
 import { pullDay } from '../lib/cloud.js'
 import { enablePush } from '../lib/push.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
+import { getHistory } from '../lib/history.js'
+import { computeStats } from '../lib/analytics.js'
+import { computeGame } from '../lib/game.js'
 
 function greeting() {
   const h = new Date().getHours()
@@ -77,6 +80,20 @@ export default function Dashboard({ profile, onSignOut }) {
 
   const [pushMsg, setPushMsg] = useState('')
   const [pushBusy, setPushBusy] = useState(false)
+  const [game, setGame] = useState(null)
+  const [streak, setStreak] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    getHistory(30).then((h) => {
+      if (!alive) return
+      setGame(computeGame(h, { waterGoal: goal }))
+      // Reuse analytics.js's streak calc (not a second hand-rolled copy) so
+      // Dashboard and Analysis can never disagree on the same real streak.
+      setStreak(computeStats(h).streak)
+    })
+    return () => { alive = false }
+  }, [day, goal])
 
   async function enableReminders() {
     setPushBusy(true)
@@ -91,6 +108,16 @@ export default function Dashboard({ profile, onSignOut }) {
         <div className="date">{dateLabel}</div>
         <h1>{greeting()}, {String(profile.name || '').split(' ')[0]}</h1>
         <span className="badge">{doneCount}/{plan.length} plan items done</span>
+        {game && (
+          <div className="gamebar">
+            <span className="lvl">LV {game.level} · {game.title}</span>
+            <div className="xpbar"><i style={{ width: Math.round(game.progress * 100) + '%' }} /></div>
+            <span className="dim" style={{ fontSize: 11 }}>
+              {game.maxed ? 'Max level reached 🏆' : `${game.toNext} XP → ${game.nextTitle}`}
+            </span>
+            {streak > 1 && <span className="chip flame">🔥 {streak}-day streak</span>}
+          </div>
+        )}
       </header>
 
       <section className="card">
@@ -177,6 +204,29 @@ export default function Dashboard({ profile, onSignOut }) {
             </p>
           )}
           <button className="ghost" type="button" onClick={markPeriodToday}>My period started today</button>
+          <p className="small" style={{ margin: '12px 0 6px' }}><strong>How are you feeling today?</strong></p>
+          <div className="chips">
+            {['😄','😊','😐','😔','😠','😰','🥱','💪'].map((m) => (
+              <button key={m} type="button" className={'chip chip-add' + (day.mood === m ? ' chip-on' : '')}
+                onClick={() => update({ mood: day.mood === m ? '' : m })}>{m}</button>
+            ))}
+          </div>
+          <div className="chips" style={{ marginTop: 6 }}>
+            {['Cramps', 'Headache', 'Bloating', 'Back pain', 'Fatigue', 'Cravings', 'Heavy flow', 'Light flow', 'Mood swings', 'Acne'].map((sym) => {
+              const on = (day.symptoms || []).includes(sym)
+              return (
+                <button key={sym} type="button" className={'chip chip-add' + (on ? ' chip-on' : '')}
+                  onClick={() => update({ symptoms: on ? day.symptoms.filter((x) => x !== sym) : [...(day.symptoms || []), sym] })}>
+                  {sym}
+                </button>
+              )
+            })}
+          </div>
+          {(day.mood || (day.symptoms || []).length > 0) && (
+            <p className="dim small" style={{ marginTop: 8 }}>
+              Logged {day.mood} {(day.symptoms || []).join(', ')} — the Assistant and your plans can use this.
+            </p>
+          )}
         </section>
       )}
 

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { calorieTarget, proteinTarget } from '../lib/nutrition.js'
 import { planMeals, pantryMatch, RECIPES } from '../lib/recipes.js'
-import { PANTRY_BASICS, searchWorldFoods } from '../lib/foods.js'
+import { searchWorldFoods } from '../lib/foods.js'
+import { haveFoodNames, addCustomPatch, setStatusPatch, allItems, statusOf } from '../lib/inventory.js'
 import { cycleInfo } from '../lib/exercises.js'
 import { getDay, saveDay, todayKey, getProfile, saveProfile } from '../lib/store.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
@@ -9,8 +10,9 @@ import { compressImage } from '../lib/img.js'
 
 const MEAL_LABEL = { breakfast: '🌅 Breakfast', lunch: '☀️ Lunch', snack: '🥜 Snack', dinner: '🌙 Dinner' }
 
-export default function Diet({ profile }) {
-  const [pantry, setPantry] = useState(profile.pantry || [])
+export default function Diet({ profile, onOpenInventory }) {
+  const [p, setP] = useState(profile)
+  const pantry = haveFoodNames(p)
   const [swaps, setSwaps] = useState({})
   const [openMeal, setOpenMeal] = useState(null)
   const [day, setDay] = useState(() => getDay())
@@ -21,24 +23,37 @@ export default function Diet({ profile }) {
   const [foodPhotoBusy, setFoodPhotoBusy] = useState(false)
   const [photoResult, setPhotoResult] = useState(null) // {text, kcal}
 
-  const ci = cycleInfo(profile)
+  const ci = cycleInfo(p)
   const plan = useMemo(
-    () => planMeals(profile, pantry, swaps, ci?.phase || null),
-    [profile, pantry, swaps, ci?.phase]
+    () => planMeals(p, pantry, swaps, ci?.phase || null),
+    [p, pantry, swaps, ci?.phase]
   )
-  const target = calorieTarget(profile)
-  const protein = proteinTarget(profile)
+  const target = calorieTarget(p)
+  const protein = proteinTarget(p)
   const planKcal = Object.values(plan).reduce((s, r) => s + r.kcal, 0)
 
-  function savePantry(next) {
-    setPantry(next)
-    saveProfile({ ...getProfile(), pantry: next })
+  function apply(patch) {
+    const np = { ...getProfile(), ...patch }
+    saveProfile(np)
+    setP(np)
   }
   const addPantry = (name) => {
-    const n = name.trim()
-    if (n && !pantry.some((p) => p.toLowerCase() === n.toLowerCase())) savePantry([...pantry, n])
+    const n = String(name).trim()
+    if (n) apply(addCustomPatch(getProfile(), n, 'Oils & Spices', 'have'))
   }
-  const removePantry = (name) => savePantry(pantry.filter((p) => p !== name))
+  function addMissingToList(missing) {
+    let prof = getProfile()
+    for (const name of missing) {
+      const exists = allItems(prof).some((i) => i.name.toLowerCase() === name.toLowerCase())
+      const patch = exists && statusOf(prof, name) === 'have'
+        ? null
+        : (exists ? setStatusPatch(prof, name, 'need') : addCustomPatch(prof, name, 'Oils & Spices', 'need'))
+      if (patch) prof = { ...prof, ...patch }
+    }
+    saveProfile(prof)
+    setP(prof)
+    setMsg('Added to your 🛒 shopping list — see Inventory.')
+  }
 
   function updateDay(patch) {
     const next = { ...day, ...patch }
@@ -165,9 +180,15 @@ export default function Diet({ profile }) {
                     <button className="mini" type="button" onClick={() => logMeal(r.name, r.kcal)}>I ate this (+{r.kcal})</button>
                     <button className="mini ghost" type="button"
                       onClick={() => setSwaps({ ...swaps, [meal]: (swaps[meal] || 0) + 1 })}>
-                      Swap for alternative
+                      Swap
                     </button>
                   </div>
+                  {pm.missing.length > 0 && (
+                    <button className="mini ghost" type="button" style={{ marginTop: 8 }}
+                      onClick={() => addMissingToList(pm.missing)}>
+                      🛒 Add {pm.missing.length} missing to shopping list
+                    </button>
+                  )}
                   <a
                     className="small" style={{ color: 'var(--accent)', display: 'inline-block', marginTop: 8 }}
                     href={`https://www.youtube.com/results?search_query=${encodeURIComponent(r.name + ' recipe')}`}
@@ -216,31 +237,24 @@ export default function Diet({ profile }) {
       </section>
 
       <section className="card">
-        <h2>My kitchen ({pantry.length})</h2>
+        <h2>🎒 My kitchen ({pantry.length} items)</h2>
         <p className="dim small" style={{ marginBottom: 10 }}>
-          Tell SAP what you have — meal plans prefer recipes you can cook right now,
-          and anything missing becomes your shopping list.
+          Meal plans prefer recipes you can cook right now. Manage everything —
+          groceries, supplements and more — in your Inventory.
         </p>
-        <div className="chips">
-          {pantry.map((p) => (
-            <button key={p} type="button" className="chip chip-x" onClick={() => removePantry(p)}>
-              {p} ×
-            </button>
-          ))}
-        </div>
-        <div className="todo-add">
+        <div className="todo-add" style={{ marginBottom: 10 }}>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (addPantry(query), setQuery(''))}
-            placeholder="Type an item… (Enter to add)"
+            placeholder="Quick add to kitchen… (Enter)"
           />
           <button type="button" onClick={runSearch} disabled={searching}>
             {searching ? '…' : '🔍'}
           </button>
         </div>
         {results && (
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginBottom: 10 }}>
             <p className="dim small">World food database results — tap to add:</p>
             {results.length === 0 && <p className="dim small">No matches found.</p>}
             {results.map((r, i) => (
@@ -251,14 +265,11 @@ export default function Diet({ profile }) {
             ))}
           </div>
         )}
-        <p className="dim small" style={{ marginTop: 10 }}>Quick add basics:</p>
-        <div className="chips">
-          {PANTRY_BASICS.filter((b) => !pantry.some((p) => p.toLowerCase() === b.toLowerCase()))
-            .slice(0, 12)
-            .map((b) => (
-              <button key={b} type="button" className="chip chip-add" onClick={() => addPantry(b)}>＋ {b}</button>
-            ))}
-        </div>
+        {onOpenInventory && (
+          <button className="ghost" type="button" onClick={onOpenInventory}>
+            Open Inventory & Shopping list ›
+          </button>
+        )}
       </section>
     </div>
   )

@@ -24,11 +24,14 @@ export function buildSeries(map, n = 30, from = new Date()) {
       calsIn: Number(d.calsIn) || 0,
       calsOut: Number(d.calsOut) || 0,
       planDone: d.planDone ? Object.values(d.planDone).filter(Boolean).length : 0,
+      weightKg: parseFloat(d.weightKg) || 0,
+      mood: d.mood || '',
       logged: Boolean(
         (Number(d.water) || 0) || (Number(d.steps) || 0) || parseFloat(d.sleepHours) ||
         (Number(d.calsIn) || 0) || (Number(d.calsOut) || 0) ||
         (d.planDone && Object.values(d.planDone).some(Boolean)) ||
-        (Array.isArray(d.todos) && d.todos.length)
+        (Array.isArray(d.todos) && d.todos.length) ||
+        parseFloat(d.weightKg) || d.mood
       ),
     })
   }
@@ -53,6 +56,7 @@ export function computeStats(series) {
     avgSleep: r1(avg(logged.filter((d) => d.sleep > 0).map((d) => d.sleep))),
     avgSteps: Math.round(avg(logged.filter((d) => d.steps > 0).map((d) => d.steps))),
     totalBurn: logged.reduce((s, d) => s + d.calsOut, 0),
+    lastWeight: [...series].reverse().find((d) => d.weightKg > 0)?.weightKg || 0,
   }
 }
 
@@ -97,6 +101,13 @@ export function insights(series, targets = {}) {
   if (planDays.length >= 3) {
     out.push(`Daily-plan items ticked: ${Math.round(avg(planDays.map((d) => d.planDone)))} per day on average — consistency beats intensity.`)
   }
+
+  const weighs = series.filter((d) => d.weightKg > 0)
+  if (weighs.length >= 2) {
+    const diff = r1(weighs[weighs.length - 1].weightKg - weighs[0].weightKg)
+    out.push(`Weight: ${weighs[0].weightKg} → ${weighs[weighs.length - 1].weightKg} kg (${diff > 0 ? '+' : ''}${diff} kg over ${weighs.length} weigh-ins). Trends matter, single days don't.`)
+  }
+
   return out
 }
 

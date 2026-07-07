@@ -348,3 +348,42 @@ button.mini {
 .strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .strip figure { margin: 0; flex: none; text-align: center; }
 .strip img { height: 130px; width: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
+
+/* ============ v2.1: clean progress theme (no neon) ============ */
+:root { --font-num: 'Chakra Petch', 'Sora', sans-serif; }
+.t-value, .lvl, .arc-time { font-family: var(--font-num); }
+
+/* game header — flat and readable */
+.gamebar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.lvl {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent); border-radius: 8px; padding: 3px 8px;
+}
+.xpbar { flex: 1; min-width: 90px; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.xpbar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.4s ease; }
+.chip.flame { border-color: #ff8c42; color: #ffb454; }
+
+/* inventory */
+.inv-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.inv-row:last-child { border-bottom: none; }
+.pill {
+  width: 42px; padding: 8px 0; border-radius: 10px; font-size: 15px;
+  background: var(--bg-2); border: 1px solid var(--line); color: var(--text-dim);
+}
+.pill.on-have { background: rgba(126, 226, 184, 0.16); border-color: #7ee2b8; }
+.pill.on-need { background: rgba(122, 162, 255, 0.14); border-color: #7aa2ff; }
+.shop-links { display: flex; gap: 12px; }
+.shop-links a { color: var(--accent); text-decoration: none; font-size: 13px; }
+
+/* badges — earned gets a simple accent ring */
+.badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.badge-tile {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 6px; text-align: center; display: flex; flex-direction: column;
+  gap: 3px; opacity: 0.45; filter: grayscale(0.8);
+}
+.badge-tile.earned { opacity: 1; filter: none; border-color: var(--accent); }
+.badge-tile .be { font-size: 22px; }
+.badge-tile .bn { font-size: 11.5px; font-weight: 700; }
+.badge-tile .bh { font-size: 9.5px; line-height: 1.25; }

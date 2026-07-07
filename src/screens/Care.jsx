@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { buildSkinRoutine, buildHairRoutine, shelfMatch, SKIN_TYPES, HAIR_TYPES, POROSITY } from '../lib/care.js'
 import { getWeather } from '../lib/weather.js'
 import { searchBeautyProducts } from '../lib/foods.js'
-import { nearbyUrl, onlineUrl } from '../lib/shop.js'
+import { haveCareNames, addCustomPatch } from '../lib/inventory.js'
 import { getProfile, saveProfile, todayKey } from '../lib/store.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
 import { uploadProgressPhoto } from '../lib/cloud.js'
+import { nearbyUrl, onlineUrl } from '../lib/shop.js'
 
 const FIND_QUERY = {
   cleanser: 'gentle face cleanser', serum: 'face serum', sunscreen: 'sunscreen SPF 50',
@@ -110,7 +111,7 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
   )
 }
 
-export default function Care({ profile }) {
+export default function Care({ profile, onOpenInventory }) {
   const [p, setP] = useState(profile)
   const [weather, setWeather] = useState(null)
   const [wxLoading, setWxLoading] = useState(true)
@@ -126,7 +127,7 @@ export default function Care({ profile }) {
   })
 
   const needsSetup = !p.skinType || !p.hairType
-  const shelf = p.careShelf || []
+  const shelf = haveCareNames(p)
 
   useEffect(() => {
     let alive = true
@@ -144,14 +145,12 @@ export default function Care({ profile }) {
     setP(np)
   }
 
-  function saveShelf(next) {
-    const np = { ...getProfile(), careShelf: next }
-    saveProfile(np)
-    setP(np)
-  }
   const addShelf = (name) => {
     const n = String(name).trim()
-    if (n && !shelf.some((x) => x.toLowerCase() === n.toLowerCase())) saveShelf([...shelf, n])
+    if (!n) return
+    const np = { ...getProfile(), ...addCustomPatch(getProfile(), n, 'Skincare', 'have') }
+    saveProfile(np)
+    setP(np)
   }
 
   async function runSearch() {
@@ -259,22 +258,16 @@ export default function Care({ profile }) {
           </section>
 
           <section className="card">
-            <h2>My care shelf ({shelf.length})</h2>
+            <h2>🎒 My care shelf ({shelf.length})</h2>
             <p className="dim small" style={{ marginBottom: 10 }}>
-              Add the products you own — routine steps switch to “use what you have.”
-              Missing steps get store links. (Live shelf prices aren’t public data —
-              compare in the links, or ask the Assistant for typical price ranges.)
+              Routine steps switch to “use what you have” for products you own.
+              (Live shelf prices aren’t public data — compare in the links, or
+              ask the Assistant for typical price ranges.)
             </p>
-            <div className="chips">
-              {shelf.map((x) => (
-                <button key={x} type="button" className="chip chip-x"
-                  onClick={() => saveShelf(shelf.filter((s) => s !== x))}>{x} ×</button>
-              ))}
-            </div>
             <div className="todo-add">
               <input value={shelfQuery} onChange={(e) => setShelfQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (addShelf(shelfQuery), setShelfQuery(''))}
-                placeholder="Type a product… (Enter to add)" />
+                placeholder="Quick add a product… (Enter)" />
               <button type="button" onClick={runSearch} disabled={searching}>{searching ? '…' : '🔍'}</button>
             </div>
             {results && (
@@ -286,6 +279,11 @@ export default function Care({ profile }) {
                     onClick={() => { addShelf(r.name); setResults(null); setShelfQuery('') }}>＋ {r.name}</button>
                 ))}
               </div>
+            )}
+            {onOpenInventory && (
+              <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={onOpenInventory}>
+                Open Inventory & Shopping list ›
+              </button>
             )}
           </section>
 

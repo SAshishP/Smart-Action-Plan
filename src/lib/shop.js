@@ -10,3 +10,13 @@ export function nearbyUrl(q, location) {
 }
 
 export const onlineUrl = (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}`
+
+// Which kind of real store to search near the user, per inventory category
+export function storeTypeFor(cat = '') {
+  if (['Proteins', 'Vegetables', 'Fruits', 'Grains', 'Dairy', 'Oils & Spices', 'Nuts & Seeds'].includes(cat)) return 'supermarket'
+  if (cat === 'Supplements') return 'pharmacy'
+  if (['Skincare', 'Haircare', 'Grooming & Makeup'].includes(cat)) return 'beauty store pharmacy'
+  if (['Clothing', 'Footwear', 'Innerwear'].includes(cat)) return 'clothing store'
+  if (cat === 'Fitness gear') return 'sports store'
+  return 'store'
+}
