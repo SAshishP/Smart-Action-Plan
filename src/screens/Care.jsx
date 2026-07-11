@@ -3,6 +3,7 @@ import { buildSkinRoutine, buildHairRoutine, shelfMatch, SKIN_TYPES, HAIR_TYPES,
 import { getWeather } from '../lib/weather.js'
 import { searchBeautyProducts } from '../lib/foods.js'
 import { haveCareNames, addCustomPatch } from '../lib/inventory.js'
+import { SKIN_FIXES, matchKeys } from '../lib/corrections.js'
 import { getProfile, saveProfile, todayKey } from '../lib/store.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
@@ -59,20 +60,22 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
       saveProfile(np)
       setP(np)
       uploadProgressPhoto(dataUrl, slot, entry.date)
-      setAnalysis('')
       setMsg('')
+      doAnalyze(dataUrl)   // auto-analysis on every new photo
     } catch {
       setMsg('That photo could not be read — try another one.')
     }
   }
 
-  async function analyze() {
-    if (!latest) { setMsg('Add this week’s photo first.'); return }
+  const analyze = () => doAnalyze(latest?.dataUrl)
+
+  async function doAnalyze(latestUrl) {
+    if (!latestUrl) { setMsg('Add this week’s photo first.'); return }
     setBusy(true); setAnalysis(''); setMsg('')
     try {
       const images = []
       if (initial) images.push(dataUrlToImage(initial))
-      images.push(dataUrlToImage(latest.dataUrl))
+      images.push(dataUrlToImage(latestUrl))
       const reply = await askAI({
         profile: p, images,
         messages: [{ role: 'user', text: initial ? `Photo 1 is my starting ${title.toLowerCase()} photo; photo 2 is this week. ${prompt}` : `This is my current ${title.toLowerCase()} photo. ${prompt}` }],
@@ -256,6 +259,26 @@ export default function Care({ profile, onOpenInventory }) {
             <h2>⚠️ Precautions</h2>
             {[...skin.precautions, ...hair.precautions].map((d, i) => <p key={i} className="dim small" style={{ marginBottom: 6 }}>• {d}</p>)}
           </section>
+
+          {matchKeys(p.analysis?.skinConcerns, SKIN_FIXES).length > 0 && (
+            <section className="card">
+              <h2>🎯 Targeted fixes <span className="dim small">from your photo analysis</span></h2>
+              {matchKeys(p.analysis?.skinConcerns, SKIN_FIXES).map((k) => {
+                const fx = SKIN_FIXES[k]
+                return (
+                  <div key={k} style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                    <div className="ex-name small">{fx.icon} {fx.name}</div>
+                    <ol className="small" style={{ margin: '6px 0 6px 18px' }}>{fx.steps.map((st, i) => <li key={i}>{st}</li>)}</ol>
+                    <p className="small no">✗ {fx.avoid}</p>
+                  </div>
+                )
+              })}
+              <p className="dim" style={{ fontSize: 11.5, marginTop: 8 }}>
+                Detected from photos — an estimate, not a diagnosis. Anything painful,
+                spreading or persistent belongs with a dermatologist.
+              </p>
+            </section>
+          )}
 
           <section className="card">
             <h2>🎒 My care shelf ({shelf.length})</h2>

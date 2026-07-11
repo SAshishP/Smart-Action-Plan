@@ -137,9 +137,14 @@ export default function Diet({ profile, onOpenInventory }) {
 
       <section className="card">
         <h2>Today's meal plan <span className="dim small">~{planKcal} kcal</span></h2>
-        {(String(profile.allergies || '').trim() || String(profile.foodsToAvoid || '').trim()) && (
+        {(String(p.allergies || '').trim() || String(p.foodsToAvoid || '').trim()) && (
           <p className="dim small" style={{ marginBottom: 8 }}>
             Filtered for your allergies & avoid-list automatically.
+          </p>
+        )}
+        {p.analysis?.fatAreas?.length > 0 && (
+          <p className="dim small" style={{ marginBottom: 8 }}>
+            📸 Photo analysis noted {p.analysis.fatAreas.join(', ')} — this plan keeps you at your calorie target; the deficit does the slimming.
           </p>
         )}
         {Object.entries(plan).map(([meal, r]) => {

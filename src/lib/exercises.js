@@ -185,16 +185,8 @@ export function setsRepsFor(goal, isCardio) {
   return '3 sets × 12'
 }
 
-export function cycleInfo(profile) {
-  if (profile?.gender !== 'female' || !profile.lastPeriodStart) return null
-  const start = new Date(profile.lastPeriodStart).getTime()
-  if (isNaN(start)) return null
-  const day = ((Math.floor((Date.now() - start) / 86400000) % 28) + 28) % 28 + 1
-  if (day <= 5) return { day, phase: 'menstrual', note: 'Menstrual phase: today is intentionally gentle — movement helps cramps, intensity doesn’t.' }
-  if (day <= 13) return { day, phase: 'follicular', note: 'Follicular phase: energy is climbing — a great window to push a little harder.' }
-  if (day <= 16) return { day, phase: 'ovulation', note: 'Ovulation: peak energy — go for your best sets (warm up properly).' }
-  return { day, phase: 'luteal', note: 'Luteal phase: energy dips are normal — one set less than usual is completely fine.' }
-}
+export { cycleInfo, cycleInfoAt } from './cycle.js'
+import { cycleInfoAt as _cycleAt } from './cycle.js'
 
 const GENTLE = ['walk', 'stretch', 'glutebridge', 'birddog', 'plank']
 const SPLITS = [
@@ -204,13 +196,13 @@ const SPLITS = [
 ]
 
 // equip: 'home' | 'db' | 'gym'  (gym includes everything)
-export function buildWorkout(profile, equip = 'home') {
+export function buildWorkout(profile, equip = 'home', dayOffset = 0) {
   const goal = goalKey(profile?.goals)
-  const ci = cycleInfo(profile)
+  const ci = _cycleAt(profile, dayOffset)
   const pool = EXERCISES.filter((e) =>
     equip === 'gym' ? true : equip === 'db' ? e.equip !== 'gym' : e.equip === 'home'
   )
-  const dayIdx = Math.floor(Date.now() / 86400000)
+  const dayIdx = Math.floor(Date.now() / 86400000) + dayOffset
   const rotate = (arr) => arr.slice(dayIdx % Math.max(arr.length, 1)).concat(arr.slice(0, dayIdx % Math.max(arr.length, 1)))
 
   // Menstrual phase → gentle recovery session regardless of goal
@@ -265,3 +257,68 @@ export function estimateCalories(exercises, doneIds, weightKg) {
     .reduce((sum, e) => sum + e.kcalMin * minutesEach, 0)
   return Math.round(total * factor)
 }
+
+const FAT_FOCUS = {
+  belly: 'extra core & obliques work', 'love handles': 'obliques + overall calorie burn',
+  thighs: 'more lower-body volume', arms: 'an arm finisher each session',
+  chest: 'chest emphasis + overall deficit', back: 'rowing volume + overall deficit',
+}
+
+// Add photo-analysis emphasis to any built plan
+export function withAnalysisFocus(plan, profile) {
+  const areas = profile?.analysis?.fatAreas || []
+  const extras = [...new Set(areas.map((a) => FAT_FOCUS[a]).filter(Boolean))]
+  if (extras.length) {
+    return { ...plan, focus: plan.focus + '. From your photos: ' + extras.join('; ') + ' (spot reduction is a myth — the deficit does the slimming, the focus work does the shaping).' }
+  }
+  return plan
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const REST = (why) => ({
+  title: 'Rest & recovery', goal: 'rest', cycle: null,
+  focus: why, avoid: 'Feeling guilty about resting — muscle is built on rest days',
+  exercises: ['walk', 'stretch'].map((id) => EXERCISES.find((e) => e.id === id)),
+})
+
+// The whole current week (Mon–Sun), goal-aware rest days, cycle-aware per date
+export function generateWeek(profile, equip = 'home') {
+  const goal = goalKey(profile?.goals)
+  const today = new Date()
+  const jsDay = today.getDay()
+  const toMonday = (jsDay + 6) % 7
+  const week = []
+  for (let i = 0; i < 7; i++) {
+    const offset = i - toMonday
+    const date = new Date(today.getTime() + offset * 86400000)
+    const wd = date.getDay()
+    const restDay = goal === 'muscle' ? (wd === 4 || wd === 0) : wd === 0
+    const plan = restDay
+      ? REST(goal === 'muscle' ? 'Walk 20–30 min + full-body stretching. Growth happens today.' : 'Easy walk + stretching. Reset for the week.')
+      : withAnalysisFocus(buildWorkout(profile, equip, offset), profile)
+    week.push({
+      offset,
+      dayName: DAY_NAMES[wd],
+      dateLabel: date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+      isToday: offset === 0,
+      plan,
+    })
+  }
+  return week
+}
+
+export const WARMUP = [
+  { name: 'March in place + arm circles', how: '60s marching while circling arms forward then back.' },
+  { name: 'Leg swings', how: 'Hold a wall; swing each leg front-back ×10, side-side ×10.' },
+  { name: 'Hip circles', how: 'Hands on hips, big slow circles, 8 each way.' },
+  { name: 'Torso twists', how: 'Feet planted, rotate gently side to side ×15.' },
+  { name: 'Cat–cow', how: 'On all fours, arch and round the spine slowly ×8.' },
+]
+
+export const COOLDOWN = [
+  { name: 'Hamstring stretch', how: 'Heel forward, hinge at hips, flat back. 30s/side.' },
+  { name: 'Quad stretch', how: 'Pull heel to glute, knees together, tall posture. 30s/side.' },
+  { name: 'Doorway chest stretch', how: 'Forearm on the frame, step through gently. 30s/side.' },
+  { name: 'Child’s pose', how: 'Knees wide, arms long, breathe slow. 45s.' },
+  { name: 'Cross-body shoulder stretch', how: 'Pull the arm across the chest. 30s/side.' },
+]

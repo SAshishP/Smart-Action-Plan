@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getDay, saveDay, todayKey, waterGoal, getProfile, saveProfile } from '../lib/store.js'
+import { getDay, saveDay, todayKey, waterGoal } from '../lib/store.js'
 import { pullDay } from '../lib/cloud.js'
 import { enablePush } from '../lib/push.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
 import { getHistory } from '../lib/history.js'
 import { computeStats } from '../lib/analytics.js'
 import { computeGame } from '../lib/game.js'
+import { cycleInfo } from '../lib/cycle.js'
 
 function greeting() {
   const h = new Date().getHours()
@@ -14,17 +15,10 @@ function greeting() {
   return 'Good evening'
 }
 
-function cyclePhase(dayOfCycle) {
-  if (dayOfCycle <= 5) return 'Menstrual phase — rest more, iron-rich food.'
-  if (dayOfCycle <= 13) return 'Follicular phase — energy rising, good for harder workouts.'
-  if (dayOfCycle <= 16) return 'Ovulation — peak energy days.'
-  return 'Luteal phase — go gentler, expect cravings, magnesium helps.'
-}
-
-export default function Dashboard({ profile, onSignOut }) {
+export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
   const [day, setDay] = useState(() => getDay())
   const [todoText, setTodoText] = useState('')
-  const [lastPeriod, setLastPeriod] = useState(profile.lastPeriodStart || '')
+  const ci = cycleInfo(profile)
 
   // If today's data already exists in the cloud (e.g. from another phone), merge it in
   useEffect(() => {
@@ -64,17 +58,6 @@ export default function Dashboard({ profile, onSignOut }) {
     setTodoText('')
   }
 
-  function markPeriodToday() {
-    const today = todayKey()
-    setLastPeriod(today)
-    const p = { ...getProfile(), lastPeriodStart: today }
-    saveProfile(p)
-  }
-
-  const cycleDay = lastPeriod
-    ? Math.floor((Date.now() - new Date(lastPeriod).getTime()) / 86400000) % 28 + 1
-    : null
-
   const doneCount = plan.filter((p) => day.planDone[p.id]).length
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0 }
 
@@ -105,7 +88,17 @@ export default function Dashboard({ profile, onSignOut }) {
   return (
     <div className="screen with-tabbar">
       <header className="dash-head">
-        <div className="date">{dateLabel}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="date">{dateLabel}</div>
+          {onOpenProfile && (
+            <button type="button" onClick={onOpenProfile} aria-label="Profile"
+              style={{ width: 40, height: 40, borderRadius: '50%', padding: 0, overflow: 'hidden', background: 'var(--bg-2)', border: '1.5px solid var(--accent)' }}>
+              {profile.photos?.face_front
+                ? <img src={profile.photos.face_front} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : '👤'}
+            </button>
+          )}
+        </div>
         <h1>{greeting()}, {String(profile.name || '').split(' ')[0]}</h1>
         <span className="badge">{doneCount}/{plan.length} plan items done</span>
         {game && (
@@ -119,6 +112,13 @@ export default function Dashboard({ profile, onSignOut }) {
           </div>
         )}
       </header>
+
+      {(profile.photos?.face_front || profile.photos?.body_front) && !profile.analysis && (
+        <div className="consent-box" style={{ marginBottom: 14 }}>
+          ✨ Analyzing your initial photos — body shape, posture, skin and hair results
+          will appear automatically in Workout, Care, Style and your Profile.
+        </div>
+      )}
 
       <section className="card">
         <h2>Motivation for today</h2>
@@ -192,40 +192,21 @@ export default function Dashboard({ profile, onSignOut }) {
 
       {profile.gender === 'female' && (
         <section className="card" style={{ marginTop: 14 }}>
-          <h2>Menstrual cycle</h2>
-          {cycleDay ? (
+          <h2>🌸 Menstrual cycle</h2>
+          {ci ? (
             <>
-              <p><strong>Day {cycleDay}</strong> of your cycle</p>
-              <p className="dim small" style={{ margin: '6px 0 12px' }}>{cyclePhase(cycleDay)}</p>
+              <p><strong>Day {ci.day}</strong> of your cycle</p>
+              <p className="dim small" style={{ margin: '6px 0 12px' }}>{ci.note}</p>
             </>
           ) : (
             <p className="dim small" style={{ marginBottom: 12 }}>
-              Log your period start and SAP will adapt your workouts and diet to each phase.
+              Log your period and SAP adapts workouts, diet and care to each phase.
             </p>
           )}
-          <button className="ghost" type="button" onClick={markPeriodToday}>My period started today</button>
-          <p className="small" style={{ margin: '12px 0 6px' }}><strong>How are you feeling today?</strong></p>
-          <div className="chips">
-            {['😄','😊','😐','😔','😠','😰','🥱','💪'].map((m) => (
-              <button key={m} type="button" className={'chip chip-add' + (day.mood === m ? ' chip-on' : '')}
-                onClick={() => update({ mood: day.mood === m ? '' : m })}>{m}</button>
-            ))}
-          </div>
-          <div className="chips" style={{ marginTop: 6 }}>
-            {['Cramps', 'Headache', 'Bloating', 'Back pain', 'Fatigue', 'Cravings', 'Heavy flow', 'Light flow', 'Mood swings', 'Acne'].map((sym) => {
-              const on = (day.symptoms || []).includes(sym)
-              return (
-                <button key={sym} type="button" className={'chip chip-add' + (on ? ' chip-on' : '')}
-                  onClick={() => update({ symptoms: on ? day.symptoms.filter((x) => x !== sym) : [...(day.symptoms || []), sym] })}>
-                  {sym}
-                </button>
-              )
-            })}
-          </div>
-          {(day.mood || (day.symptoms || []).length > 0) && (
-            <p className="dim small" style={{ marginTop: 8 }}>
-              Logged {day.mood} {(day.symptoms || []).join(', ')} — the Assistant and your plans can use this.
-            </p>
+          {onOpenCycle && (
+            <button className="ghost" type="button" onClick={onOpenCycle}>
+              Open Cycle — log, predictions & phase guide ›
+            </button>
           )}
         </section>
       )}
@@ -260,11 +241,6 @@ export default function Dashboard({ profile, onSignOut }) {
       </button>
       {pushMsg && (
         <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{pushMsg}</p>
-      )}
-      {onSignOut && (
-        <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={onSignOut}>
-          Sign out
-        </button>
       )}
     </div>
   )

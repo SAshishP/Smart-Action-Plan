@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { CATEGORY_GROUPS, allItems, statusOf, counts, setStatusPatch, addCustomPatch } from '../lib/inventory.js'
 import { getProfile, saveProfile } from '../lib/store.js'
 import { nearbyUrl, onlineUrl, storeTypeFor } from '../lib/shop.js'
+import { findNearbyStores, directionsUrl } from '../lib/places.js'
 
 export default function Inventory({ profile, onBack }) {
   const [p, setP] = useState(profile)
@@ -12,6 +13,21 @@ export default function Inventory({ profile, onBack }) {
   const [liveLoc, setLiveLoc] = useState('')      // fresh GPS just for store links
   const [locMsg, setLocMsg] = useState('')
   const linkLoc = liveLoc || p.location || ''
+  const [stores, setStores] = useState(null)     // {type, list} | {type, error}
+  const [findBusy, setFindBusy] = useState('')
+
+  async function findStores(type) {
+    setFindBusy(type)
+    setStores(null)
+    try {
+      const list = await findNearbyStores(linkLoc, type)
+      setStores({ type, list })
+    } catch (e) {
+      setStores({ type, error: e.message })
+    } finally {
+      setFindBusy('')
+    }
+  }
 
   function useLiveLocation() {
     if (!navigator.geolocation) { setLocMsg('GPS not available — links will use your profile location.'); return }
@@ -127,10 +143,37 @@ export default function Inventory({ profile, onBack }) {
           </p>
           <div className="chips">
             {[...new Set(shopping.map((i) => storeTypeFor(i.cat)))].map((t) => (
-              <a key={t} className="chip chip-add" target="_blank" rel="noreferrer"
-                href={nearbyUrl(t, linkLoc)}>🗺 {t} near you</a>
+              <button key={t} type="button" className="chip chip-add" disabled={findBusy === t}
+                onClick={() => findStores(t)}>
+                {findBusy === t ? '📡 finding…' : `📍 ${t} near you`}
+              </button>
             ))}
           </div>
+          {stores && (
+            <div className="analysis" style={{ marginBottom: 12 }}>
+              {stores.error && <p className="small">⚠️ {stores.error}</p>}
+              {stores.list && stores.list.length === 0 && (
+                <p className="small dim">No mapped {stores.type} found within 3 km — try the 🗺 map link on an item instead.</p>
+              )}
+              {stores.list && stores.list.map((st) => (
+                <div className="todo-row" key={st.name + st.km}>
+                  <div style={{ flex: 1 }}>
+                    <span className="small"><strong>{st.name}</strong></span>
+                    <div className="dim" style={{ fontSize: 11.5 }}>{st.km} km{st.kind ? ` · ${st.kind}` : ''}{st.addr ? ` · ${st.addr}` : ''}</div>
+                  </div>
+                  <a className="mini ghost" style={{ textDecoration: 'none', padding: '6px 10px' }}
+                    href={directionsUrl(st)} target="_blank" rel="noreferrer">Directions</a>
+                </div>
+              ))}
+              {stores.list && stores.list.length > 0 && (
+                <p className="dim" style={{ fontSize: 11, marginTop: 6 }}>
+                  Real stores from OpenStreetMap with live distance from you. Shelf prices &
+                  ratings aren’t in free data — the Directions link opens Maps, which shows
+                  hours and ratings; the Assistant can give typical price ranges.
+                </p>
+              )}
+            </div>
+          )}
           {shopping.map((i) => (
             <div className="todo-row" key={'s' + i.name}>
               <input type="checkbox" checked={false} onChange={() => setStatus(i.name, 'have')} aria-label={'bought ' + i.name} />

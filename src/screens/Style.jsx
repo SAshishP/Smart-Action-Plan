@@ -136,9 +136,14 @@ UNDERTONE: one of ${UNDERTONES.join(' / ')}`,
       <section className="card">
         <h2>Your analysis</h2>
         <button type="button" onClick={detectFromPhotos} disabled={detecting}>
-          {detecting ? 'Analyzing your photos…' : '✨ Detect from my photos'}
+          {detecting ? 'Analyzing your photos…' : '✨ Re-analyze from my photos'}
         </button>
         {detectMsg && <p className="dim small" style={{ marginTop: 8 }}>{detectMsg}</p>}
+        {profile.analysis && (
+          <p className="dim small" style={{ marginBottom: 10 }}>
+            Auto-filled from your initial photo analysis — adjust below anytime.
+          </p>
+        )}
         <div className="row" style={{ marginTop: 12 }}>
           <label className="field"><span>Body shape</span>
             <select value={p.bodyShape || ''} onChange={(e) => save({ bodyShape: e.target.value })}>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import Body3D from '../components/Body3D.jsx'
-import { buildWorkout, setsRepsFor, estimateCalories, MUSCLE_NAMES } from '../lib/exercises.js'
+import { buildWorkout, withAnalysisFocus, generateWeek, setsRepsFor, estimateCalories, MUSCLE_NAMES, WARMUP, COOLDOWN } from '../lib/exercises.js'
+import { PRE_WORKOUT, POST_WORKOUT, filterSafe } from '../lib/recipes.js'
+import { POSTURE_FIXES, matchKeys } from '../lib/corrections.js'
 import { getDay, saveDay, todayKey, getProfile, saveProfile } from '../lib/store.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
@@ -16,7 +18,21 @@ export default function Workout({ profile }) {
   const [analysis, setAnalysis] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
 
-  const plan = useMemo(() => buildWorkout(profile, equip), [profile, equip])
+  const plan = useMemo(() => withAnalysisFocus(buildWorkout(profile, equip), profile), [profile, equip])
+  const week = useMemo(() => generateWeek(profile, equip), [profile, equip])
+  const [openDay, setOpenDay] = useState(null)
+  const [openFix, setOpenFix] = useState(null)
+  const postureKeys = matchKeys(profile.analysis?.posture, POSTURE_FIXES)
+  const dayIdxRot = Math.floor(Date.now() / 86400000)
+  const pick2 = (list) => { const safe = filterSafe(list, profile); return safe.length ? [safe[dayIdxRot % safe.length], safe[(dayIdxRot + 1) % safe.length]].filter((x, i, a) => a.indexOf(x) === i) : [] }
+  const preMeals = pick2(PRE_WORKOUT)
+  const postMeals = pick2(POST_WORKOUT)
+
+  function logSnack(sn) {
+    const d = getDay()
+    saveDay({ ...d, meals: [...(d.meals || []), { id: Date.now(), name: sn.name, kcal: sn.kcal }], calsIn: (Number(d.calsIn) || 0) + sn.kcal }, todayKey())
+    setFinishedMsg(`Logged ${sn.name} ✓ (+${sn.kcal} kcal on Home)`)
+  }
   const openEx = plan.exercises.find((e) => e.id === openId) || null
 
   function chooseEquip(v) {
@@ -54,15 +70,16 @@ export default function Workout({ profile }) {
       const p = { ...getProfile(), progressPhotos: next }
       saveProfile(p)
       uploadProgressPhoto(dataUrl, 'body_front', entry.date) // background cloud copy
-      setAnalysis('')
+      doAnalyze(dataUrl) // auto-analysis on every new progress photo
     } catch {
       setFinishedMsg('That photo could not be read — try another one.')
     }
   }
 
-  async function analyzeProgress() {
+  const analyzeProgress = () => doAnalyze(progress[progress.length - 1]?.dataUrl)
+
+  async function doAnalyze(latest) {
     const initial = profile.photos?.body_front
-    const latest = progress[progress.length - 1]?.dataUrl
     if (!latest) { setAnalysis('Add this week’s photo first.'); return }
     setAnalyzing(true)
     setAnalysis('')
@@ -136,6 +153,41 @@ export default function Workout({ profile }) {
       </section>
 
       <section className="card">
+        <h2>🔥 Warm-up first (5 min)</h2>
+        {WARMUP.map((w, i) => (
+          <p key={i} className="small" style={{ marginBottom: 6 }}><strong>{w.name}:</strong> <span className="dim">{w.how}</span></p>
+        ))}
+      </section>
+
+      {postureKeys.length > 0 && (
+        <section className="card">
+          <h2>🧍 Posture corrections <span className="dim small">from your photo analysis</span></h2>
+          {postureKeys.map((k) => {
+            const fx = POSTURE_FIXES[k]
+            const open = openFix === k
+            return (
+              <div key={k} className="ex-card">
+                <div className="ex-head" onClick={() => setOpenFix(open ? null : k)}>
+                  <div style={{ flex: 1 }}>
+                    <div className="ex-name">{fx.icon} {fx.name}</div>
+                    <div className="dim small">{fx.why}</div>
+                  </div>
+                  <span className="dim">{open ? '▲' : '▼'}</span>
+                </div>
+                {open && (
+                  <div className="ex-body">
+                    <ol className="small">{fx.steps.map((st, i) => <li key={i}>{st}</li>)}</ol>
+                    <p className="small no">✗ {fx.avoid}</p>
+                    <p className="dim" style={{ fontSize: 11.5 }}>Do these daily — posture changes in weeks, not days. Pain (not effort) means stop and see a physio.</p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </section>
+      )}
+
+      <section className="card">
         <h2>Today's exercises</h2>
         {plan.exercises.map((ex) => (
           <div key={ex.id} className="ex-card">
@@ -170,6 +222,62 @@ export default function Workout({ profile }) {
         ))}
         <button type="button" style={{ marginTop: 12 }} onClick={finishWorkout}>Finish workout & log calories</button>
         {finishedMsg && <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{finishedMsg}</p>}
+      </section>
+
+      <section className="card">
+        <h2>🧊 Cool-down after (5 min)</h2>
+        {COOLDOWN.map((w, i) => (
+          <p key={i} className="small" style={{ marginBottom: 6 }}><strong>{w.name}:</strong> <span className="dim">{w.how}</span></p>
+        ))}
+      </section>
+
+      <section className="card">
+        <h2>🍌 Fuel: pre & post workout</h2>
+        <p className="small" style={{ marginBottom: 6 }}><strong>Before</strong></p>
+        {preMeals.map((sn) => (
+          <div key={'pre' + sn.name} className="todo-row">
+            <div style={{ flex: 1 }}>
+              <span>{sn.name}</span>
+              <div className="dim small">{sn.when} · {sn.why}</div>
+            </div>
+            <button className="mini" type="button" onClick={() => logSnack(sn)}>+{sn.kcal}</button>
+          </div>
+        ))}
+        <p className="small" style={{ margin: '10px 0 6px' }}><strong>After</strong></p>
+        {postMeals.map((sn) => (
+          <div key={'post' + sn.name} className="todo-row">
+            <div style={{ flex: 1 }}>
+              <span>{sn.name}</span>
+              <div className="dim small">{sn.when} · {sn.why}</div>
+            </div>
+            <button className="mini" type="button" onClick={() => logSnack(sn)}>+{sn.kcal}</button>
+          </div>
+        ))}
+        <p className="dim" style={{ fontSize: 11.5, marginTop: 8 }}>Filtered for your diet type and allergies automatically.</p>
+      </section>
+
+      <section className="card">
+        <h2>📅 Your week</h2>
+        {week.map((d) => (
+          <div key={d.offset} className="ex-card">
+            <div className="ex-head" onClick={() => setOpenDay(openDay === d.offset ? null : d.offset)}>
+              <div style={{ flex: 1 }}>
+                <div className="ex-name">{d.isToday ? '➡️ ' : ''}{d.dayName} {d.dateLabel} — {d.plan.title}</div>
+                {d.plan.cycle && <div className="dim small">Cycle day {d.plan.cycle.day} · {d.plan.cycle.phase}</div>}
+              </div>
+              <span className="dim">{openDay === d.offset ? '▲' : '▼'}</span>
+            </div>
+            {openDay === d.offset && (
+              <div className="ex-body">
+                <p className="small dim">{d.plan.focus}</p>
+                <p className="small" style={{ marginTop: 6 }}>
+                  {d.plan.exercises.map((ex) => ex.name).join(' · ')}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+        <p className="dim" style={{ fontSize: 11.5, marginTop: 8 }}>Built from your goal, equipment{profile.gender === 'female' ? ', cycle phase per day' : ''} and photo analysis. Open any day to preview it.</p>
       </section>
 
       <section className="card">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Splash from './screens/Splash.jsx'
 import Auth from './screens/Auth.jsx'
 import Onboarding from './screens/Onboarding.jsx'
@@ -10,7 +10,10 @@ import Care from './screens/Care.jsx'
 import Style from './screens/Style.jsx'
 import Analysis from './screens/Analysis.jsx'
 import Inventory from './screens/Inventory.jsx'
+import Cycle from './screens/Cycle.jsx'
+import Profile from './screens/Profile.jsx'
 import InstallGuide, { isStandalone } from './screens/InstallGuide.jsx'
+import { runInitialAnalysis } from './lib/analysis.js'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere } from './lib/cloud.js'
@@ -23,6 +26,26 @@ export default function App() {
   const [profile, setProfile] = useState(() => getProfile())
   const [tab, setTab] = useState('home')
   const [prevTab, setPrevTab] = useState('home')
+
+  function autoAnalyze(prof) {
+    runInitialAnalysis(prof)
+      .then((patch) => {
+        const np = { ...getProfile(), ...patch }
+        saveProfile(np)
+        setProfile(np)
+      })
+      .catch((e) => console.error('auto-analysis:', e.message))
+  }
+
+  // owner/back-fill: analyze existing accounts that have photos but no analysis yet
+  const analyzedOnce = useRef(false)
+  useEffect(() => {
+    if (analyzedOnce.current || !cloudReady || !session || !profile) return
+    if ((profile.photos?.body_front || profile.photos?.face_front) && !profile.analysis) {
+      analyzedOnce.current = true
+      autoAnalyze(profile)
+    }
+  }, [session, profile])
 
   // Watch login state (cloud mode only)
   useEffect(() => {
@@ -73,6 +96,13 @@ export default function App() {
     setPrevTab(tab)
     goTo('inv')
   }
+  function openProfile() {
+    setPrevTab(tab)
+    goTo('profile')
+  }
+  function openCycle() {
+    goTo('cycle')
+  }
 
   if (!isStandalone() && !installSkipped) {
     return <InstallGuide onSkip={() => setInstallSkipped(true)} />
@@ -92,6 +122,7 @@ export default function App() {
           if (saveProfile(p)) {
             setProfile(p)
             uploadInitialPhotos(p) // background upload; never blocks the app
+            if (p.photos?.body_front || p.photos?.face_front) autoAnalyze(p) // deep photo analysis starts immediately, no button
           }
         }}
       />
@@ -100,12 +131,14 @@ export default function App() {
 
   return (
     <>
-      {tab === 'home' && <Dashboard profile={profile} onSignOut={cloudReady ? handleSignOut : null} />}
+      {tab === 'home' && <Dashboard profile={profile} onOpenProfile={openProfile} onOpenCycle={openCycle} />}
       {tab === 'workout' && <Workout profile={profile} />}
       {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
       {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} />}
       {tab === 'style' && <Style profile={profile} />}
       {tab === 'inv' && <Inventory profile={profile} onBack={() => goTo(prevTab)} />}
+      {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
+      {tab === 'profile' && <Profile profile={profile} onBack={() => goTo(prevTab)} onSignOut={cloudReady ? handleSignOut : null} onProfileUpdate={setProfile} />}
       {tab === 'stats' && <Analysis profile={profile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       <nav className="tabbar">
@@ -114,6 +147,7 @@ export default function App() {
           ['workout', '💪', 'Workout'],
           ['diet', '🍽️', 'Diet'],
           ['care', '🧴', 'Care'],
+          ...(profile.gender === 'female' ? [['cycle', '🌸', 'Cycle']] : []),
           ['style', '👔', 'Style'],
           ['inv', '🎒', 'Items'],
           ['stats', '📊', 'Stats'],

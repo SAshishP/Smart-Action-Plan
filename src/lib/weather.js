@@ -2,6 +2,17 @@
 // Accepts "lat, lng" (from the GPS button) or a typed city name.
 // Returns { temp, humidity, uv, place } or null (never throws).
 
+export async function geocode(place) {
+  try {
+    const g = await fetch(
+      'https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(place)
+    )
+    const gd = await g.json()
+    const hit = gd.results && gd.results[0]
+    return hit ? { lat: hit.latitude, lon: hit.longitude, place: hit.name } : null
+  } catch { return null }
+}
+
 export async function getWeather(location) {
   if (!location) return null
   try {
@@ -10,13 +21,9 @@ export async function getWeather(location) {
     if (m) {
       lat = Number(m[1]); lon = Number(m[2]); place = 'your location'
     } else {
-      const g = await fetch(
-        'https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(place)
-      )
-      const gd = await g.json()
-      const hit = gd.results && gd.results[0]
+      const hit = await geocode(place)
       if (!hit) return null
-      lat = hit.latitude; lon = hit.longitude; place = hit.name
+      lat = hit.lat; lon = hit.lon; place = hit.place
     }
     const r = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
