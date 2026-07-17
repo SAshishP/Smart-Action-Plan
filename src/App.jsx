@@ -3,7 +3,6 @@ import Splash from './screens/Splash.jsx'
 import Auth from './screens/Auth.jsx'
 import Onboarding from './screens/Onboarding.jsx'
 import Dashboard from './screens/Dashboard.jsx'
-import Chat from './screens/Chat.jsx'
 import Workout from './screens/Workout.jsx'
 import Diet from './screens/Diet.jsx'
 import Care from './screens/Care.jsx'
@@ -12,20 +11,21 @@ import Analysis from './screens/Analysis.jsx'
 import Inventory from './screens/Inventory.jsx'
 import Cycle from './screens/Cycle.jsx'
 import Profile from './screens/Profile.jsx'
-import InstallGuide, { isStandalone } from './screens/InstallGuide.jsx'
 import { runInitialAnalysis } from './lib/analysis.js'
+import Chat from './screens/Chat.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere } from './lib/cloud.js'
 
 export default function App() {
   const [splashDone, setSplashDone] = useState(false)
-  const [installSkipped, setInstallSkipped] = useState(false)
-  // undefined = still checking, null = signed out, object = signed in
   const [session, setSession] = useState(cloudReady ? undefined : null)
   const [profile, setProfile] = useState(() => getProfile())
   const [tab, setTab] = useState('home')
   const [prevTab, setPrevTab] = useState('home')
+  const openInventory = () => { setPrevTab(tab); setTab('inv') }
+  const openProfile = () => { setPrevTab(tab); setTab('profile') }
+  const openCycle = () => setTab('cycle')
 
   function autoAnalyze(prof) {
     runInitialAnalysis(prof)
@@ -47,18 +47,16 @@ export default function App() {
     }
   }, [session, profile])
 
-  // Watch login state (cloud mode only)
   useEffect(() => {
     if (!cloudReady) return
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s ?? null)
-      if (!s) setProfile(null) // signed out → clear the in-memory profile
+      if (!s) setProfile(null)
     })
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  // After login, pull this user's profile from the cloud
   useEffect(() => {
     if (!cloudReady || !session) return
     pullProfile().then((p) => {
@@ -69,7 +67,6 @@ export default function App() {
     })
   }, [session])
 
-  // Gender-adaptive theme: swaps the accent palette app-wide
   useEffect(() => {
     const g = profile?.gender
     document.documentElement.setAttribute(
@@ -82,30 +79,6 @@ export default function App() {
     await signOutEverywhere()
     setProfile(null)
     setTab('home')
-  }
-
-  // Workout/Diet/Care/Style/Analysis each save profile edits (setup fields,
-  // wardrobe, "why", etc.) straight to storage without lifting state up —
-  // re-read on every tab switch so those edits show up elsewhere immediately
-  // instead of only after a full reload.
-  function goTo(id) {
-    setProfile(getProfile())
-    setTab(id)
-  }
-  function openInventory() {
-    setPrevTab(tab)
-    goTo('inv')
-  }
-  function openProfile() {
-    setPrevTab(tab)
-    goTo('profile')
-  }
-  function openCycle() {
-    goTo('cycle')
-  }
-
-  if (!isStandalone() && !installSkipped) {
-    return <InstallGuide onSkip={() => setInstallSkipped(true)} />
   }
 
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
@@ -121,8 +94,8 @@ export default function App() {
         onDone={(p) => {
           if (saveProfile(p)) {
             setProfile(p)
-            uploadInitialPhotos(p) // background upload; never blocks the app
-            if (p.photos?.body_front || p.photos?.face_front) autoAnalyze(p) // deep photo analysis starts immediately, no button
+            uploadInitialPhotos(p)
+            autoAnalyze(p)   // deep photo analysis starts immediately, no button
           }
         }}
       />
@@ -136,25 +109,25 @@ export default function App() {
       {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
       {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} />}
       {tab === 'style' && <Style profile={profile} />}
-      {tab === 'inv' && <Inventory profile={profile} onBack={() => goTo(prevTab)} />}
-      {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
-      {tab === 'profile' && <Profile profile={profile} onBack={() => goTo(prevTab)} onSignOut={cloudReady ? handleSignOut : null} onProfileUpdate={setProfile} />}
       {tab === 'stats' && <Analysis profile={profile} />}
+      {tab === 'inv' && <Inventory profile={profile} />}
+      {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
+      {tab === 'profile' && <Profile profile={profile} onBack={() => setTab(prevTab)} onSignOut={cloudReady ? handleSignOut : null} onProfileUpdate={setProfile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       <nav className="tabbar">
         {[
           ['home', '🏠', 'Home'],
-          ['workout', '💪', 'Workout'],
+          ['workout', '💪', 'Fit'],
           ['diet', '🍽️', 'Diet'],
           ['care', '🧴', 'Care'],
           ...(profile.gender === 'female' ? [['cycle', '🌸', 'Cycle']] : []),
           ['style', '👔', 'Style'],
           ['inv', '🎒', 'Items'],
           ['stats', '📊', 'Stats'],
-          ...(cloudReady ? [['ai', '✨', 'Assistant']] : []),
+          ...(cloudReady ? [['ai', '✨', 'AI']] : []),
         ].map(([id, ic, lbl]) => (
           <button key={id} type="button" className={tab === id ? 'active' : ''}
-            aria-label={lbl} onClick={() => goTo(id)}>
+            aria-label={lbl} onClick={() => setTab(id)}>
             <span className="ic">{ic}</span>
             <span className="lbl">{lbl}</span>
           </button>

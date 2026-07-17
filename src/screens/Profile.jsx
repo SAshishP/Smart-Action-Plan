@@ -50,7 +50,7 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
     setMsg('')
     try {
       const patch = await runInitialAnalysis(getProfile())
-      apply(patch, 'Photo analysis updated ✓ — Workout, Care and Style now use it.')
+      apply(patch, 'Photo analysis updated ✓ — Fit, Care and Style now use it.')
     } catch (err) {
       setMsg('⚠️ ' + err.message)
     } finally {
@@ -82,7 +82,7 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
               {p.faceShape && <span className="chip">🙂 {p.faceShape} face</span>}
               {p.undertone && <span className="chip">🎨 {p.undertone} undertone</span>}
             </div>
-            {a.posture?.length > 0 && <p className="small" style={{ marginTop: 8 }}><strong>Posture:</strong> {a.posture.join(', ')} <span className="dim">(fixes in 💪 Workout)</span></p>}
+            {a.posture?.length > 0 && <p className="small" style={{ marginTop: 8 }}><strong>Posture:</strong> {a.posture.join(', ')} <span className="dim">(fixes in 💪 Fit)</span></p>}
             {a.fatAreas?.length > 0 && <p className="small" style={{ marginTop: 4 }}><strong>Focus areas:</strong> {a.fatAreas.join(', ')} <span className="dim">(built into your plans)</span></p>}
             {a.skinConcerns?.length > 0 && <p className="small" style={{ marginTop: 4 }}><strong>Skin:</strong> {a.skinConcerns.join(', ')} <span className="dim">(fixes in 🧴 Care)</span></p>}
             {a.hairNotes && <p className="small" style={{ marginTop: 4 }}><strong>Hair:</strong> {a.hairNotes}</p>}
@@ -117,19 +117,6 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
           <label className="field"><span>Weight (kg)</span><input type="number" inputMode="numeric" value={f.weight || ''} onChange={set('weight')} /></label>
         </div>
         <label className="field"><span>Goals</span><textarea rows="2" value={f.goals || ''} onChange={set('goals')} /></label>
-        <label className="field"><span>Body type (if you know it)</span>
-          <select value={f.bodyType || ''} onChange={set('bodyType')}>
-            <option value="">Not sure — analyze from photos</option>
-            <option>Ectomorph (lean)</option>
-            <option>Mesomorph (athletic)</option>
-            <option>Endomorph (rounder)</option>
-          </select></label>
-        <label className="field"><span>Skin sensitivity</span>
-          <select value={f.skinSensitivity || 'none'} onChange={set('skinSensitivity')}>
-            <option value="none">Not sensitive</option>
-            <option value="mild">Mildly sensitive</option>
-            <option value="high">Very sensitive</option>
-          </select></label>
         <label className="field"><span>Diet type</span>
           <select value={f.dietType || ''} onChange={set('dietType')}>
             {['', 'Vegetarian', 'Non-vegetarian', 'Eggetarian', 'Vegan', 'Keto', 'No specific diet'].map((d) => <option key={d} value={d}>{d || 'Select…'}</option>)}

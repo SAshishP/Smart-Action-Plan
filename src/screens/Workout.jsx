@@ -105,7 +105,6 @@ export default function Workout({ profile }) {
     }
   }
 
-  const initialThumb = profile.photos?.body_front
   const latestThumb = progress[progress.length - 1]
 
   return (
@@ -281,24 +280,18 @@ export default function Workout({ profile }) {
       </section>
 
       <section className="card">
-        <h2>Progress photos</h2>
-        <div className="compare">
-          <div className="compare-slot">
-            {initialThumb ? <img src={initialThumb} alt="start" /> : <span className="dim small">No starting photo</span>}
-            <span className="dim small">Start</span>
-          </div>
-          <div className="compare-slot">
-            {latestThumb ? <img src={latestThumb.dataUrl} alt="latest" /> : <span className="dim small">Add this week's</span>}
-            <span className="dim small">{latestThumb ? latestThumb.date : 'Latest'}</span>
-          </div>
-        </div>
+        <h2>📸 Weekly progress photo</h2>
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          Add one photo a week (same pose, same light). It’s analyzed against your
+          starting point automatically — view all photos side-by-side anytime in
+          📊 Stats → Compare my photos.
+        </p>
         <label className="photo-add">
-          📸 Add this week's photo (front, same pose & light)
+          📷 Add this week's photo
           <input type="file" accept="image/*" onChange={addProgressPhoto} />
         </label>
-        <button className="ghost" type="button" onClick={analyzeProgress} disabled={analyzing}>
-          {analyzing ? 'Analyzing…' : '✨ Analyze my progress'}
-        </button>
+        {latestThumb && <p className="dim small">Last added: {latestThumb.date} · {progress.length} photo{progress.length > 1 ? 's' : ''} tracked</p>}
+        {analyzing && <p className="dim small">✨ Analyzing your progress…</p>}
         {analysis && <div className="analysis small">{analysis}</div>}
       </section>
     </div>

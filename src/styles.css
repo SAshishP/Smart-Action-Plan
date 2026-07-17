@@ -64,16 +64,6 @@ h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
   .splash, .splash-mark { animation: none; }
 }
 
-/* ---- install guide ---- */
-.install-hero { text-align: center; padding: 12px 0 22px; }
-.install-icon { width: 84px; height: 84px; border-radius: 22px; margin-bottom: 14px; }
-.install-hero h1 { font-size: 24px; margin-bottom: 8px; }
-.install-hero p { color: var(--text-dim); font-size: 14.5px; line-height: 1.5; }
-.install-steps ol { padding-left: 20px; margin: 4px 0 10px; }
-.install-steps li { margin-bottom: 10px; line-height: 1.5; font-size: 14.5px; }
-.install-steps li:last-child { margin-bottom: 0; }
-.install-guide button.ghost { margin-top: 10px; }
-
 /* ---- cards & inputs ---- */
 .card {
   background: var(--card);

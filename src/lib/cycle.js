@@ -1,8 +1,6 @@
 // Menstrual cycle engine — history-based cycle length, phase detection for
 // any date, predictions, and the phase guide (diet/workout/relief).
 
-import { todayKey } from './store.js'
-
 export function cycleLength(profile = {}) {
   const h = (profile.periodHistory || []).slice(-6)
   if (h.length >= 2) {
@@ -66,12 +64,9 @@ export function predictions(profile = {}) {
   }
 }
 
-// Returns the profile patch for logging a period start today (or a date).
-// Defaults to the LOCAL calendar date (matching store.js's todayKey(), the
-// same key mood/symptoms/day-logs use) — not the UTC date, which could
-// backdate the period by a day for anyone east of UTC in the early morning.
+// Returns the profile patch for logging a period start today (or a date)
 export function logPeriodPatch(profile = {}, dateKey) {
-  const d = dateKey || todayKey()
+  const d = dateKey || new Date().toISOString().slice(0, 10)
   const history = [...new Set([...(profile.periodHistory || []), d])].sort()
   return { lastPeriodStart: d, periodHistory: history.slice(-12) }
 }

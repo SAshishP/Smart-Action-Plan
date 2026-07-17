@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import MiniChart from '../components/MiniChart.jsx'
 import { getHistory } from '../lib/history.js'
 import { computeStats, insights, affirmationOfTheDay } from '../lib/analytics.js'
-import { waterGoal, getProfile, saveProfile, getDay, saveDay, todayKey } from '../lib/store.js'
+import { waterGoal, getProfile, saveProfile } from '../lib/store.js'
 import { calorieTarget } from '../lib/nutrition.js'
 import { askAI } from '../lib/ai.js'
+import { getDay, saveDay, todayKey } from '../lib/store.js'
 import { computeGame, earnedBadges } from '../lib/game.js'
 
 export default function Analysis({ profile }) {
@@ -15,6 +16,7 @@ export default function Analysis({ profile }) {
   const [whySaved, setWhySaved] = useState(false)
   const [review, setReview] = useState('')
   const [reviewBusy, setReviewBusy] = useState(false)
+  const [showPhotos, setShowPhotos] = useState(false)
   const [weightInput, setWeightInput] = useState('')
   const [weightMsg, setWeightMsg] = useState('')
 
@@ -38,13 +40,7 @@ export default function Analysis({ profile }) {
   const calTarget = calorieTarget(p)
   const series = history ? history.slice(-range) : []
   const stats = history ? computeStats(history.slice(-range)) : null
-  // Streak is always computed from the FULL history, not the range slice —
-  // otherwise "current streak" would read differently here than on the
-  // Dashboard (which also uses the full 30-day window) purely because of
-  // which chart range happens to be selected.
-  const fullStats = history ? computeStats(history) : null
   const tips = history ? insights(history.slice(-range), { waterGoal: wGoal, calTarget }) : []
-  const game = history ? computeGame(history, { waterGoal: wGoal }) : null
 
   function saveWhy() {
     const np = { ...getProfile(), why: why.trim() }
@@ -87,6 +83,20 @@ export default function Analysis({ profile }) {
     ...(p.photos?.face_front ? [{ date: 'Start', dataUrl: p.photos.face_front }] : []),
     ...(p.facePhotos || []),
   ]
+  const hairStrip = [
+    ...(p.photos?.hair_front ? [{ date: 'Start', dataUrl: p.photos.hair_front }] : []),
+    ...(p.hairPhotos || []),
+  ]
+  const Strip = ({ label, items }) => items.length === 0 ? null : (
+    <div>
+      <p className="dim small" style={{ marginTop: 10 }}>{label} — {items.length} photo{items.length > 1 ? 's' : ''}</p>
+      <div className="strip">
+        {items.map((x, i) => (
+          <figure key={label + i}><img src={x.dataUrl} alt={x.date} /><figcaption className="dim small">{x.date}</figcaption></figure>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div className="screen with-tabbar">
@@ -120,7 +130,7 @@ export default function Analysis({ profile }) {
           </div>
 
           <div className="chips">
-            <span className="chip">🔥 {fullStats.streak}-day streak</span>
+            <span className="chip">🔥 {stats.streak}-day streak</span>
             <span className="chip">📅 {stats.daysLogged}/{range} logged</span>
             {stats.avgSleep > 0 && <span className="chip">😴 {stats.avgSleep}h avg</span>}
           </div>
@@ -169,7 +179,7 @@ export default function Analysis({ profile }) {
           <section className="card">
             <h2>🏅 Badges</h2>
             <div className="badge-grid">
-              {earnedBadges(history.slice(-30), p, { waterGoal: wGoal }, fullStats).map((b) => (
+              {earnedBadges(history.slice(-30), p, { waterGoal: wGoal }, stats).map((b) => (
                 <div key={b.id} className={'badge-tile' + (b.earned ? ' earned' : '')} title={b.how}>
                   <span className="be">{b.emoji}</span>
                   <span className="bn">{b.name}</span>
@@ -177,12 +187,11 @@ export default function Analysis({ profile }) {
                 </div>
               ))}
             </div>
-            {game && (
+            {(() => { const g = computeGame(history, { waterGoal: wGoal }); return (
               <p className="small" style={{ marginTop: 10 }}>
-                Total <strong>{game.xp.toLocaleString()} XP</strong> · Level {game.level} <strong>{game.title}</strong>
-                {game.maxed ? ' — max level reached 🏆' : ` — ${game.toNext} XP to ${game.nextTitle}.`}
+                Total <strong>{g.xp.toLocaleString()} XP</strong> · Level {g.level} <strong>{g.title}</strong> — {g.toNext} XP to {g.nextTitle}.
               </p>
-            )}
+            ) })()}
           </section>
 
           <section className="card">
@@ -194,36 +203,28 @@ export default function Analysis({ profile }) {
             {review && <div className="analysis small">{review}</div>}
           </section>
 
-          {(bodyStrip.length > 1 || faceStrip.length > 1) && (
-            <section className="card">
-              <h2>📸 Transformation</h2>
-              {bodyStrip.length > 1 && (
-                <>
-                  <p className="dim small">Body</p>
-                  <div className="strip">
-                    {bodyStrip.map((x, i) => (
-                      <figure key={'b' + i}><img src={x.dataUrl} alt={x.date} /><figcaption className="dim small">{x.date}</figcaption></figure>
-                    ))}
-                  </div>
-                </>
-              )}
-              {faceStrip.length > 1 && (
-                <>
-                  <p className="dim small" style={{ marginTop: 10 }}>Face</p>
-                  <div className="strip">
-                    {faceStrip.map((x, i) => (
-                      <figure key={'f' + i}><img src={x.dataUrl} alt={x.date} /><figcaption className="dim small">{x.date}</figcaption></figure>
-                    ))}
-                  </div>
-                </>
-              )}
-            </section>
-          )}
-          {bodyStrip.length <= 1 && faceStrip.length <= 1 && (
-            <p className="dim small" style={{ textAlign: 'center' }}>
-              Add weekly photos in 💪 Workout and 🧴 Care — your transformation strip builds here.
+          <section className="card">
+            <h2>📸 Photo comparison</h2>
+            <p className="dim small" style={{ marginBottom: 10 }}>
+              Your photos stay tucked away — reveal them only when you want to compare.
+              Start photo first, then every weekly photo in order.
             </p>
-          )}
+            <button type="button" onClick={() => setShowPhotos(!showPhotos)}>
+              {showPhotos ? 'Hide the photos' : '📸 Compare my photos'}
+            </button>
+            {showPhotos && (
+              <div style={{ marginTop: 6 }}>
+                <Strip label="💪 Body" items={bodyStrip} />
+                <Strip label="🙂 Face & skin" items={faceStrip} />
+                <Strip label="💇 Hair" items={hairStrip} />
+                {bodyStrip.length + faceStrip.length + hairStrip.length === 0 && (
+                  <p className="dim small" style={{ marginTop: 10 }}>
+                    No photos yet — add weekly photos in 💪 Fit and 🧴 Care and they collect here.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
         </>
       )}
     </div>

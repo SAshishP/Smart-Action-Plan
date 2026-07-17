@@ -120,13 +120,10 @@ export function haveFoodNames(profile) {
     .map((i) => i.name)
 }
 
-// Names the Care module treats as "on my shelf". Deliberately excludes
-// Grooming & Makeup — those product names (e.g. "Beard oil", "Foundation /
-// BB cream") would false-positive against shelfMatch's substring keywords
-// for unrelated skin/hair routine steps ("oil", "cream").
+// Names the Care module treats as "on my shelf"
 export function haveCareNames(profile) {
   return allItems(profile)
-    .filter((i) => (CARE_CATS.includes(i.cat) || i.legacy === 'care') && statusOf(profile, i.name) === 'have')
+    .filter((i) => (CARE_CATS.includes(i.cat) || i.cat === 'Grooming & Makeup' || i.legacy === 'care') && statusOf(profile, i.name) === 'have')
     .map((i) => i.name)
 }
 
@@ -139,13 +136,8 @@ export function setStatusPatch(profile, name, status) {
 }
 
 export function addCustomPatch(profile, name, cat = 'Oils & Spices', status = 'have') {
-  // Resolve case-insensitively to an existing item's canonical name first —
-  // otherwise typing a different case than the catalog (e.g. "milk" vs
-  // "Milk") writes the status under a new, orphaned key that statusOf's
-  // exact-match lookup never finds again.
-  const match = allItems(profile).find((i) => i.name.toLowerCase() === name.toLowerCase())
-  const canonicalName = match ? match.name : name
-  const patch = setStatusPatch(profile, canonicalName, status)
-  if (!match) patch.customItems = [...(profile.customItems || []), { name, cat }]
+  const exists = allItems(profile).some((i) => i.name.toLowerCase() === name.toLowerCase())
+  const patch = setStatusPatch(profile, name, status)
+  if (!exists) patch.customItems = [...(profile.customItems || []), { name, cat }]
   return patch
 }

@@ -5,15 +5,9 @@ export const SKIN_TYPES = ['Normal', 'Oily', 'Dry', 'Combination']
 export const HAIR_TYPES = ['Straight', 'Wavy', 'Curly', 'Coily']
 export const POROSITY = ["Don't know", 'Low', 'Normal', 'High']
 
-function mentionsAllergen(p, keywords) {
-  const text = (String(p.allergies || '') + ' ' + String(p.foodsToAvoid || '')).toLowerCase()
-  return keywords.some((k) => text.includes(k))
-}
-
 export function buildSkinRoutine(p = {}, w = null) {
   const type = String(p.skinType || 'Normal').toLowerCase()
   const sens = p.skinSensitivity === 'high'
-  const fragranceAllergy = mentionsAllergen(p, ['fragrance', 'perfume', 'scent'])
   const dryWeather = w && (w.humidity < 40 || w.temp < 12)
   const humid = w && w.humidity > 70
   const uvHigh = w && w.uv >= 6
@@ -22,7 +16,7 @@ export function buildSkinRoutine(p = {}, w = null) {
   const am = [
     {
       key: 'cleanser', step: 'Cleanse',
-      how: sens || fragranceAllergy ? 'Fragrance-free gentle cleanser, lukewarm water, 30–60 seconds. Pat dry — never rub.'
+      how: sens ? 'Fragrance-free gentle cleanser, lukewarm water, 30–60 seconds. Pat dry — never rub.'
         : type === 'oily' ? 'Gel or foaming cleanser to clear overnight oil. Lukewarm water.'
         : type === 'dry' ? 'Cream/hydrating cleanser — or just water on very dry mornings.'
         : type === 'combination' ? 'Gentle gel cleanser, focus on the T-zone.'
@@ -60,7 +54,7 @@ export function buildSkinRoutine(p = {}, w = null) {
             : type === 'dry' ? 'Hyaluronic serum, then a ceramide layer to lock it.'
             : 'Niacinamide serum, pea-sized amount for the whole face.',
         },
-    !sens && { key: 'moisturizer', step: 'Moisturize', how: 'Slightly heavier than morning. Lips and under-eyes too.' },
+    { key: 'moisturizer', step: 'Moisturize', how: 'Slightly heavier than morning. Lips and under-eyes too.' },
   ].filter(Boolean)
 
   const weekly = [
@@ -91,7 +85,6 @@ export function buildSkinRoutine(p = {}, w = null) {
 export function buildHairRoutine(p = {}, w = null) {
   const t = String(p.hairType || 'Straight').toLowerCase()
   const por = String(p.hairPorosity || '').toLowerCase()
-  const nutAllergy = mentionsAllergen(p, ['coconut', 'nut', 'argan'])
   const humid = w && w.humidity > 70
   const dryAir = w && w.humidity < 35
   const washes = t === 'coily' ? '1× / week'
@@ -103,7 +96,7 @@ export function buildHairRoutine(p = {}, w = null) {
     {
       key: 'shampoo', step: `Wash ${washes}`,
       how: p.dandruff
-        ? 'Anti-dandruff shampoo (zinc pyrithione or ketoconazole): massage into the SCALP, leave 3–5 min, at each wash for the first 2 weeks, then alternate with your regular gentle shampoo.'
+        ? 'Anti-dandruff shampoo (zinc pyrithione or ketoconazole): massage into the SCALP, leave 3–5 min, 2× a week. Gentle shampoo on other washes.'
         : 'Shampoo the SCALP, not the lengths — the foam rinsing through cleans the rest. Lukewarm water.',
     },
     {
@@ -116,9 +109,7 @@ export function buildHairRoutine(p = {}, w = null) {
     {
       key: 'oil', step: 'Oil 1–2× / week',
       how: (t === 'curly' || t === 'coily')
-        ? (nutAllergy
-            ? 'Seal damp hair with a few drops of a nut-free oil (e.g. sunflower or grapeseed — your allergy list flags nut/coconut oils), focusing on ends.'
-            : 'Seal damp hair with a few drops (argan/coconut), focusing on ends.')
+        ? 'Seal damp hair with a few drops (argan/coconut), focusing on ends.'
         : 'Pre-wash oiling: scalp + ends, 30–60 min before shampoo.',
     },
     (t === 'curly' || t === 'coily') && {
@@ -142,18 +133,13 @@ export function buildHairRoutine(p = {}, w = null) {
     'Tight hairstyles every day pull the hairline — vary it.',
   ].filter(Boolean)
 
-  const precautions = [
-    (p.allergies || p.foodsToAvoid) ? `Read ingredient labels against your allergies: ${[p.allergies, p.foodsToAvoid].filter(Boolean).join(', ')}.` : null,
-    nutAllergy ? 'Nut/coconut oils are common in hair products beyond what this routine suggests — check labels before trying something new.' : null,
-  ].filter(Boolean)
-
-  return { routine, donts, precautions }
+  return { routine, donts }
 }
 
 // Best-effort match: does the user's shelf contain something for this step?
 export function shelfMatch(stepKey, shelf = []) {
   const key = stepKey.toLowerCase()
-  const alt = { shampoo: ['shampoo'], conditioner: ['conditioner'],
+  const alt = { shampoo: ['shampoo'], conditioner: ['conditioner', 'mask'],
     cleanser: ['cleanser', 'face wash', 'facewash'], moisturizer: ['moistur', 'cream', 'lotion'],
     sunscreen: ['sunscreen', 'spf', 'sunblock'], serum: ['serum', 'acid', 'niacinamide'],
     oil: ['oil'], 'leave-in': ['leave', 'curl', 'gel'] }[key] || [key]

@@ -1,13 +1,8 @@
 /* SAP service worker: offline caching + push reminders */
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
-import { registerRoute, NavigationRoute } from 'workbox-routing'
+import { precacheAndRoute } from 'workbox-precaching'
 
 // Offline support (same behavior as before)
 precacheAndRoute(self.__WB_MANIFEST)
-
-// Any navigation (e.g. reopening the app while offline) falls back to the
-// cached app shell, same as generateSW's default navigateFallback did.
-registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))

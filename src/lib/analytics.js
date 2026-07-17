@@ -52,9 +52,9 @@ export function computeStats(series) {
   return {
     daysLogged: logged.length,
     streak,
-    avgWater: r1(avg(logged.filter((d) => d.water > 0).map((d) => d.water))),
+    avgWater: r1(avg(logged.map((d) => d.water))),
     avgSleep: r1(avg(logged.filter((d) => d.sleep > 0).map((d) => d.sleep))),
-    avgSteps: Math.round(avg(logged.filter((d) => d.steps > 0).map((d) => d.steps))),
+    avgSteps: Math.round(avg(logged.map((d) => d.steps))),
     totalBurn: logged.reduce((s, d) => s + d.calsOut, 0),
     lastWeight: [...series].reverse().find((d) => d.weightKg > 0)?.weightKg || 0,
   }
@@ -97,17 +97,16 @@ export function insights(series, targets = {}) {
     out.push(`Workouts/burn logged on ${active.length} of ${logged.length} days — total ${active.reduce((s, d) => s + d.calsOut, 0).toLocaleString()} kcal burned.`)
   }
 
-  const planDays = logged.filter((d) => d.planDone > 0)
-  if (planDays.length >= 3) {
-    out.push(`Daily-plan items ticked: ${Math.round(avg(planDays.map((d) => d.planDone)))} per day on average — consistency beats intensity.`)
-  }
-
   const weighs = series.filter((d) => d.weightKg > 0)
   if (weighs.length >= 2) {
     const diff = r1(weighs[weighs.length - 1].weightKg - weighs[0].weightKg)
     out.push(`Weight: ${weighs[0].weightKg} → ${weighs[weighs.length - 1].weightKg} kg (${diff > 0 ? '+' : ''}${diff} kg over ${weighs.length} weigh-ins). Trends matter, single days don't.`)
   }
 
+  const planDays = logged.filter((d) => d.planDone > 0)
+  if (planDays.length >= 3) {
+    out.push(`Daily-plan items ticked: ${Math.round(avg(planDays.map((d) => d.planDone)))} per day on average — consistency beats intensity.`)
+  }
   return out
 }
 
@@ -130,11 +129,6 @@ export const AFFIRMATIONS = [
 
 export function affirmationOfTheDay(name = '') {
   const first = String(name).split(' ')[0] || 'friend'
-  // Day index tied to the LOCAL calendar day (matching todayKey()/dayKeyOffset()
-  // elsewhere), not the UTC epoch day — otherwise the quote flips at UTC
-  // midnight instead of local midnight for most users.
-  const now = new Date()
-  const localDayNumber = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000)
-  const idx = localDayNumber % AFFIRMATIONS.length
+  const idx = Math.floor(Date.now() / 86400000) % AFFIRMATIONS.length
   return AFFIRMATIONS[idx].replaceAll('{name}', first)
 }

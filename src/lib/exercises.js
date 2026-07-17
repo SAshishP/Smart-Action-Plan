@@ -248,16 +248,6 @@ export function buildWorkout(profile, equip = 'home', dayOffset = 0) {
   }
 }
 
-// Rough calories for the checked exercises, scaled by body weight
-export function estimateCalories(exercises, doneIds, weightKg) {
-  const factor = (Number(weightKg) > 0 ? Number(weightKg) : 70) / 70
-  const minutesEach = 4
-  const total = exercises
-    .filter((e) => doneIds.includes(e.id))
-    .reduce((sum, e) => sum + e.kcalMin * minutesEach, 0)
-  return Math.round(total * factor)
-}
-
 const FAT_FOCUS = {
   belly: 'extra core & obliques work', 'love handles': 'obliques + overall calorie burn',
   thighs: 'more lower-body volume', arms: 'an arm finisher each session',
@@ -322,3 +312,14 @@ export const COOLDOWN = [
   { name: 'Child’s pose', how: 'Knees wide, arms long, breathe slow. 45s.' },
   { name: 'Cross-body shoulder stretch', how: 'Pull the arm across the chest. 30s/side.' },
 ]
+
+
+// Rough calories for the checked exercises, scaled by body weight
+export function estimateCalories(exercises, doneIds, weightKg) {
+  const factor = (Number(weightKg) > 0 ? Number(weightKg) : 70) / 70
+  const minutesEach = 4
+  const total = exercises
+    .filter((e) => doneIds.includes(e.id))
+    .reduce((sum, e) => sum + e.kcalMin * minutesEach, 0)
+  return Math.round(total * factor)
+}

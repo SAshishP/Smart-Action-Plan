@@ -79,3 +79,30 @@ After that it's an app: own icon, full screen, works offline, no browser bar.
   migration signal.
 - Changes not appearing on phones after deploy → the PWA auto-updates on
   next open; force-close and reopen the app once.
+
+---
+
+# 🎉 SAP is complete — all 7 phases
+
+**Tabs:** 🏠 Home (day plan, trackers, cycle tile, todos, reminders) ·
+💪 Fit (3D muscle body, equipment-aware plans, cycle-aware, progress photos + AI) ·
+🍽️ Diet (targets, allergy-safe meal plans, recipes, world food search, photo
+calorie counter) · 🧴 Care (weather-tuned skin & hair routines, product shelf,
+face/hair progress + AI) · 👔 Style (AI body/color analysis, occasion outfits,
+haircut/beard/makeup guides, AI wardrobe) · 📊 Stats (charts, insights, AI
+monthly review, transformation strip, your why + affirmations) · ✨ AI
+(context-aware assistant with photo analysis).
+
+**Owner maintenance (5 minutes a month):**
+- Open your Supabase dashboard weekly — it's your admin view AND it keeps the
+  free project from pausing.
+- Backup: Supabase → Database → Backups exist on free tier, but for photos,
+  occasionally download the storage bucket. Your users trusted you with this.
+- If the AI stops replying: check aistudio.google.com quota, or set a
+  different model (see PHASE2-SETUP.md).
+- Watch storage: Supabase dashboard shows usage. At ~80% of 1 GB, tell me —
+  we'll add cleanup or a second bucket.
+
+**Ship an update:** edit → git push → Vercel deploys → users' installed apps
+refresh on next open. Server functions redeploy with
+`supabase functions deploy <name>` only when you change them.

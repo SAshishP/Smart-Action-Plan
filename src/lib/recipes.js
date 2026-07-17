@@ -120,6 +120,30 @@ export function safeRecipes(profile) {
   return RECIPES.filter((r) => dietAllows(r, profile.dietType) && !violates(r, profile))
 }
 
+export const filterSafe = (list, profile) =>
+  list.filter((r) => dietAllows(r, profile.dietType) && !violates(r, profile))
+
+const SNACK = (name, when, diets, allergens, kcal, why) =>
+  ({ name, when, diets, allergens, kcal, why, ingredients: [[name, '']], meal: 'snack' })
+
+export const PRE_WORKOUT = [
+  SNACK('Banana + peanut butter', '30–45 min before', ['veg', 'vegan'], ['peanut'], 200, 'Fast carbs + a little fat — the classic pre-fuel.'),
+  SNACK('Oats with honey (small bowl)', '60–90 min before', ['veg', 'vegan'], ['gluten'], 220, 'Slow carbs for longer sessions.'),
+  SNACK('Boiled egg + toast', '60 min before', ['egg', 'nonveg'], ['egg', 'gluten'], 210, 'Carbs + protein for strength work.'),
+  SNACK('Black coffee + dates (2)', '20–30 min before', ['veg', 'vegan', 'keto'], [], 90, 'Caffeine kick + quick sugar. Skip if training at night.'),
+  SNACK('Apple + handful of almonds', '45 min before', ['veg', 'vegan', 'keto'], ['nuts'], 180, 'Light and steady energy.'),
+]
+
+export const POST_WORKOUT = [
+  SNACK('Whey shake in milk/water', 'within 45 min', ['veg', 'nonveg'], ['dairy'], 180, '~25g protein — the repair signal.'),
+  SNACK('Curd/Greek yogurt + banana', 'within 60 min', ['veg'], ['dairy'], 230, 'Protein + carbs to refill muscles.'),
+  SNACK('3 boiled eggs', 'within 60 min', ['egg', 'nonveg', 'keto'], ['egg'], 210, 'Cheap complete protein.'),
+  SNACK('Sprouts chaat (big bowl)', 'within 60 min', ['veg', 'vegan'], [], 200, 'Plant protein + iron.'),
+  SNACK('Paneer cubes (100g) + fruit', 'within 60 min', ['veg', 'keto'], ['dairy'], 300, 'Slow protein — great after evening workouts.'),
+  SNACK('Tofu scramble', 'within 60 min', ['veg', 'vegan', 'keto'], ['soy'], 190, 'Vegan repair fuel.'),
+]
+
+
 // How many of the recipe's ingredients the user's pantry covers
 export function pantryMatch(recipe, pantry = []) {
   const have = pantry.map((p) => p.toLowerCase())
@@ -162,26 +186,3 @@ export function planMeals(profile, pantry = [], swaps = {}, cyclePhase = null) {
   }
   return result
 }
-
-export const filterSafe = (list, profile) =>
-  list.filter((r) => dietAllows(r, profile.dietType) && !violates(r, profile))
-
-const SNACK = (name, when, diets, allergens, kcal, why) =>
-  ({ name, when, diets, allergens, kcal, why, ingredients: [[name, '']], meal: 'snack' })
-
-export const PRE_WORKOUT = [
-  SNACK('Banana + peanut butter', '30–45 min before', ['veg', 'vegan'], ['peanut'], 200, 'Fast carbs + a little fat — the classic pre-fuel.'),
-  SNACK('Oats with honey (small bowl)', '60–90 min before', ['veg', 'vegan'], ['gluten'], 220, 'Slow carbs for longer sessions.'),
-  SNACK('Boiled egg + toast', '60 min before', ['egg', 'nonveg'], ['egg', 'gluten'], 210, 'Carbs + protein for strength work.'),
-  SNACK('Black coffee + dates (2)', '20–30 min before', ['veg', 'vegan', 'keto'], [], 90, 'Caffeine kick + quick sugar. Skip if training at night.'),
-  SNACK('Apple + handful of almonds', '45 min before', ['veg', 'vegan', 'keto'], ['nuts'], 180, 'Light and steady energy.'),
-]
-
-export const POST_WORKOUT = [
-  SNACK('Whey shake in milk/water', 'within 45 min', ['veg', 'nonveg'], ['dairy'], 180, '~25g protein — the repair signal.'),
-  SNACK('Curd/Greek yogurt + banana', 'within 60 min', ['veg'], ['dairy'], 230, 'Protein + carbs to refill muscles.'),
-  SNACK('3 boiled eggs', 'within 60 min', ['egg', 'nonveg', 'keto'], ['egg'], 210, 'Cheap complete protein.'),
-  SNACK('Sprouts chaat (big bowl)', 'within 60 min', ['veg', 'vegan'], [], 200, 'Plant protein + iron.'),
-  SNACK('Paneer cubes (100g) + fruit', 'within 60 min', ['veg', 'keto'], ['dairy'], 300, 'Slow protein — great after evening workouts.'),
-  SNACK('Tofu scramble', 'within 60 min', ['veg', 'vegan', 'keto'], ['soy'], 190, 'Vegan repair fuel.'),
-]

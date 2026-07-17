@@ -23,15 +23,14 @@ export function xpForDay(d, { waterGoal = 8 } = {}) {
 export function computeGame(series, targets = {}) {
   const xp = series.reduce((s, d) => s + xpForDay(d, targets), 0)
   const level = Math.min(LEVEL_TITLES.length - 1, Math.floor(Math.sqrt(xp / 60)))
-  const maxed = level === LEVEL_TITLES.length - 1
   const floorXP = 60 * level * level
   const nextXP = 60 * (level + 1) * (level + 1)
   return {
-    xp, level, maxed,
+    xp, level,
     title: LEVEL_TITLES[level],
-    nextTitle: maxed ? null : LEVEL_TITLES[level + 1],
-    progress: maxed ? 1 : Math.min(1, (xp - floorXP) / Math.max(1, nextXP - floorXP)),
-    toNext: maxed ? 0 : Math.max(0, nextXP - xp),
+    nextTitle: LEVEL_TITLES[Math.min(level + 1, LEVEL_TITLES.length - 1)],
+    progress: Math.min(1, (xp - floorXP) / Math.max(1, nextXP - floorXP)),
+    toNext: Math.max(0, nextXP - xp),
   }
 }
 

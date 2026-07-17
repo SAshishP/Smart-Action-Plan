@@ -49,21 +49,10 @@ function reminders(p: Record<string, unknown>) {
   ]
 }
 
-// Is `min` (a reminder's minute-of-day) inside the 15-minute window
-// starting at `now`? Handles the window wrapping past midnight so a run
-// that lands at e.g. 23:52 still catches a 00:03 reminder.
-function inWindow(min: number, now: number): boolean {
-  const m = ((min % 1440) + 1440) % 1440
-  const end = (now + 15) % 1440
-  return end > now ? m >= now && m < end : m >= now || m < end
-}
-
 Deno.serve(async (req) => {
-  // Only the scheduler (which knows the secret) may trigger this.
-  // Fail CLOSED: if CRON_SECRET was never configured, refuse every request
-  // rather than leaving this service-role-backed endpoint wide open.
+  // Only the scheduler (which knows the secret) may trigger this
   const secret = Deno.env.get('CRON_SECRET')
-  if (!secret || req.headers.get('x-cron-secret') !== secret) {
+  if (secret && req.headers.get('x-cron-secret') !== secret) {
     return new Response('forbidden', { status: 403 })
   }
 
@@ -82,20 +71,20 @@ Deno.serve(async (req) => {
     .select('endpoint, subscription, tz, user_id')
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
-  const { data: profs, error: profErr } = await supabase.from('profiles').select('id, data')
-  if (profErr) return Response.json({ error: profErr.message }, { status: 500 })
+  const { data: profs } = await supabase.from('profiles').select('id, data')
   const profileOf = new Map((profs || []).map((p) => [p.id, p.data || {}]))
 
   let sent = 0
   let removed = 0
-  const deadEndpoints = new Set<string>()
 
   for (const s of subs || []) {
     const profile = profileOf.get(s.user_id) || {}
     const now = localMinutes(s.tz || 'UTC')
-    const due = reminders(profile).filter((r) => inWindow(r.min, now))
+    const due = reminders(profile).filter((r) => {
+      const m = ((r.min % 1440) + 1440) % 1440
+      return m >= now && m < now + 15
+    })
     for (const r of due) {
-      if (deadEndpoints.has(s.endpoint)) break // already found dead this run — skip remaining reminders
       try {
         await webpush.sendNotification(
           s.subscription,
@@ -106,13 +95,8 @@ Deno.serve(async (req) => {
         const code = (e as { statusCode?: number }).statusCode
         if (code === 404 || code === 410) {
           // Phone unsubscribed / app removed — clean up
-          deadEndpoints.add(s.endpoint)
+          await supabase.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
           removed++
-          try {
-            await supabase.from('push_subscriptions').delete().eq('endpoint', s.endpoint)
-          } catch (delErr) {
-            console.error('cleanup delete failed:', s.endpoint.slice(0, 40), delErr)
-          }
         } else {
           console.error('push failed:', s.endpoint.slice(0, 40), e)
         }

@@ -90,24 +90,17 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
 
   return (
     <section className="card">
-      <h2>{title} progress</h2>
-      <div className="compare">
-        <div className="compare-slot">
-          {initial ? <img src={initial} alt="start" /> : <span className="dim small">No starting photo</span>}
-          <span className="dim small">Start</span>
-        </div>
-        <div className="compare-slot">
-          {latest ? <img src={latest.dataUrl} alt="latest" /> : <span className="dim small">Add this week's</span>}
-          <span className="dim small">{latest ? latest.date : 'Latest'}</span>
-        </div>
-      </div>
+      <h2>📸 {title} — weekly photo</h2>
+      <p className="dim small" style={{ marginBottom: 10 }}>
+        One photo a week, same light & angle. Auto-analyzed against your start —
+        see all photos side-by-side in 📊 Stats → Compare my photos.
+      </p>
       <label className="photo-add">
-        📸 Add this week's photo (same light & angle)
+        📷 Add this week's photo
         <input type="file" accept="image/*" onChange={addPhoto} />
       </label>
-      <button className="ghost" type="button" onClick={analyze} disabled={busy}>
-        {busy ? 'Analyzing…' : '✨ Compare & advise'}
-      </button>
+      {latest && <p className="dim small">Last added: {latest.date} · {list.length} photo{list.length > 1 ? 's' : ''} tracked</p>}
+      {busy && <p className="dim small">✨ Analyzing…</p>}
       {msg && <p className="dim small" style={{ marginTop: 8 }}>{msg}</p>}
       {analysis && <div className="analysis small">{analysis}</div>}
     </section>
@@ -257,7 +250,7 @@ export default function Care({ profile, onOpenInventory }) {
 
           <section className="card">
             <h2>⚠️ Precautions</h2>
-            {[...skin.precautions, ...hair.precautions].map((d, i) => <p key={i} className="dim small" style={{ marginBottom: 6 }}>• {d}</p>)}
+            {skin.precautions.map((d, i) => <p key={i} className="dim small" style={{ marginBottom: 6 }}>• {d}</p>)}
           </section>
 
           {matchKeys(p.analysis?.skinConcerns, SKIN_FIXES).length > 0 && (

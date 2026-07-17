@@ -138,20 +138,15 @@ export function beardGuide(profile = {}) {
 
 export function groomingGuide(profile = {}) {
   const tone = String(profile.undertone || 'neutral').toLowerCase()
-  const sens = profile.skinSensitivity === 'high'
   const lip = tone === 'warm' ? 'peach, coral, brick and warm reds'
     : tone === 'cool' ? 'berry, mauve, rose and blue-reds'
     : 'rose, soft red and mauve — most shades behave for you'
   return {
     hairRemoval: [
-      sens
-        ? 'Sensitive skin: patch test any wax or depilatory cream 24h before, on the inner arm. Shaving or a gentle epilator is often kinder than waxing on reactive skin.'
-        : 'Waxing lasts ~3–4 weeks; shaving 2–4 days; pick per body area and pain budget.',
+      'Waxing lasts ~3–4 weeks; shaving 2–4 days; pick per body area and pain budget.',
       'Wax when hair is ~5 mm (2–3 weeks growth). Exfoliate the day before, never the day of.',
       'Post-wax: no sun, gym or hot showers for 24h; moisturize.',
-      sens
-        ? 'Face: threading avoids chemicals but still stresses sensitive skin — go to someone experienced and skip it if your skin is actively irritated.'
-        : 'Face: threading is precise for brows/upper lip (every 2–3 weeks).',
+      'Face: threading is precise for brows/upper lip (every 2–3 weeks).',
     ],
     nails: [
       'Remove old polish; soak hands/feet 5 min in warm soapy water.',
@@ -163,15 +158,11 @@ export function groomingGuide(profile = {}) {
     ],
     makeup: [
       `Foundation: match your ${tone} undertone at the JAWLINE in daylight — not on the hand.`,
-      sens
-        ? 'Sensitive skin: patch test any new foundation, primer or concealer on your jaw 24h before wearing it on your face.'
-        : 'Base order: moisturizer → sunscreen → primer (optional) → foundation/BB → concealer only where needed.',
+      'Base order: moisturizer → sunscreen → primer (optional) → foundation/BB → concealer only where needed.',
       'Cream blush on smile points; blend up toward temples.',
       `Lips that suit your undertone: ${lip}.`,
       'Set the T-zone only if oily; mist for a natural finish.',
-      profile.allergies
-        ? `Read labels against your allergies: ${profile.allergies} — and remove everything before sleep, every night.`
-        : 'Check your allergy list against ingredients — and remove everything before sleep, every night.',
+      'Check your allergy list against ingredients — and remove everything before sleep, every night.',
     ],
   }
 }

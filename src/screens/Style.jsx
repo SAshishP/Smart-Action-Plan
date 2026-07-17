@@ -8,15 +8,8 @@ import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
 import { uploadProgressPhoto } from '../lib/cloud.js'
 
-// A dress or an ethnic piece (kurta/saree/etc) covers both the Top and
-// Bottom slots, so it should satisfy either without a direct type match.
 function wardrobeHas(pieceKey, wardrobe = []) {
-  const direct = wardrobe.find((w) => String(w.type || '').toLowerCase() === pieceKey)
-  if (direct) return direct
-  if (pieceKey === 'top' || pieceKey === 'bottom') {
-    return wardrobe.find((w) => ['dress', 'ethnic'].includes(String(w.type || '').toLowerCase())) || null
-  }
-  return null
+  return wardrobe.find((w) => String(w.type || '').toLowerCase() === pieceKey) || null
 }
 
 export default function Style({ profile }) {
@@ -132,6 +125,11 @@ UNDERTONE: one of ${UNDERTONES.join(' / ')}`,
   return (
     <div className="screen with-tabbar">
       <h1>Style</h1>
+      {profile.analysis && (
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          Auto-filled from your initial photo analysis — adjust below anytime.
+        </p>
+      )}
 
       <section className="card">
         <h2>Your analysis</h2>
@@ -139,11 +137,6 @@ UNDERTONE: one of ${UNDERTONES.join(' / ')}`,
           {detecting ? 'Analyzing your photos…' : '✨ Re-analyze from my photos'}
         </button>
         {detectMsg && <p className="dim small" style={{ marginTop: 8 }}>{detectMsg}</p>}
-        {profile.analysis && (
-          <p className="dim small" style={{ marginBottom: 10 }}>
-            Auto-filled from your initial photo analysis — adjust below anytime.
-          </p>
-        )}
         <div className="row" style={{ marginTop: 12 }}>
           <label className="field"><span>Body shape</span>
             <select value={p.bodyShape || ''} onChange={(e) => save({ bodyShape: e.target.value })}>

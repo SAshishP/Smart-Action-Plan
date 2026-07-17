@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getDay, saveDay, todayKey, waterGoal } from '../lib/store.js'
+import { getDay, saveDay, todayKey, waterGoal, getProfile, saveProfile } from '../lib/store.js'
 import { pullDay } from '../lib/cloud.js'
 import { enablePush } from '../lib/push.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
 import { getHistory } from '../lib/history.js'
-import { computeStats } from '../lib/analytics.js'
 import { computeGame } from '../lib/game.js'
-import { cycleInfo } from '../lib/cycle.js'
 
 function greeting() {
   const h = new Date().getHours()
@@ -15,10 +13,17 @@ function greeting() {
   return 'Good evening'
 }
 
+function cyclePhase(dayOfCycle) {
+  if (dayOfCycle <= 5) return 'Menstrual phase — rest more, iron-rich food.'
+  if (dayOfCycle <= 13) return 'Follicular phase — energy rising, good for harder workouts.'
+  if (dayOfCycle <= 16) return 'Ovulation — peak energy days.'
+  return 'Luteal phase — go gentler, expect cravings, magnesium helps.'
+}
+
 export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
   const [day, setDay] = useState(() => getDay())
   const [todoText, setTodoText] = useState('')
-  const ci = cycleInfo(profile)
+  const [lastPeriod, setLastPeriod] = useState(profile.lastPeriodStart || '')
 
   // If today's data already exists in the cloud (e.g. from another phone), merge it in
   useEffect(() => {
@@ -58,6 +63,10 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
     setTodoText('')
   }
 
+  const cycleDay = lastPeriod
+    ? Math.floor((Date.now() - new Date(lastPeriod).getTime()) / 86400000) % 28 + 1
+    : null
+
   const doneCount = plan.filter((p) => day.planDone[p.id]).length
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0 }
 
@@ -71,12 +80,16 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
     getHistory(30).then((h) => {
       if (!alive) return
       setGame(computeGame(h, { waterGoal: goal }))
-      // Reuse analytics.js's streak calc (not a second hand-rolled copy) so
-      // Dashboard and Analysis can never disagree on the same real streak.
-      setStreak(computeStats(h).streak)
+      let st = 0
+      for (let i = h.length - 1; i >= 0; i--) {
+        if (h[i].logged) st++
+        else if (i === h.length - 1) continue
+        else break
+      }
+      setStreak(st)
     })
     return () => { alive = false }
-  }, [day, goal])
+  }, [day])
 
   async function enableReminders() {
     setPushBusy(true)
@@ -105,9 +118,7 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
           <div className="gamebar">
             <span className="lvl">LV {game.level} · {game.title}</span>
             <div className="xpbar"><i style={{ width: Math.round(game.progress * 100) + '%' }} /></div>
-            <span className="dim" style={{ fontSize: 11 }}>
-              {game.maxed ? 'Max level reached 🏆' : `${game.toNext} XP → ${game.nextTitle}`}
-            </span>
+            <span className="dim" style={{ fontSize: 11 }}>{game.toNext} XP → {game.nextTitle}</span>
             {streak > 1 && <span className="chip flame">🔥 {streak}-day streak</span>}
           </div>
         )}
@@ -116,7 +127,7 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
       {(profile.photos?.face_front || profile.photos?.body_front) && !profile.analysis && (
         <div className="consent-box" style={{ marginBottom: 14 }}>
           ✨ Analyzing your initial photos — body shape, posture, skin and hair results
-          will appear automatically in Workout, Care, Style and your Profile.
+          will appear automatically in Fit, Care, Style and your Profile.
         </div>
       )}
 
@@ -193,10 +204,10 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
       {profile.gender === 'female' && (
         <section className="card" style={{ marginTop: 14 }}>
           <h2>🌸 Menstrual cycle</h2>
-          {ci ? (
+          {cycleDay ? (
             <>
-              <p><strong>Day {ci.day}</strong> of your cycle</p>
-              <p className="dim small" style={{ margin: '6px 0 12px' }}>{ci.note}</p>
+              <p><strong>Day {cycleDay}</strong> of your cycle</p>
+              <p className="dim small" style={{ margin: '6px 0 12px' }}>{cyclePhase(cycleDay)}</p>
             </>
           ) : (
             <p className="dim small" style={{ marginBottom: 12 }}>
@@ -241,6 +252,14 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
       </button>
       {pushMsg && (
         <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{pushMsg}</p>
+      )}
+      <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
+        Workout · Diet · Skin & Hair · Style modules unlock in the next update.
+      </p>
+      {onSignOut && (
+        <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={onSignOut}>
+          Sign out
+        </button>
       )}
     </div>
   )

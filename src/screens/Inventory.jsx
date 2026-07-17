@@ -3,6 +3,9 @@ import { CATEGORY_GROUPS, allItems, statusOf, counts, setStatusPatch, addCustomP
 import { getProfile, saveProfile } from '../lib/store.js'
 import { nearbyUrl, onlineUrl, storeTypeFor } from '../lib/shop.js'
 import { findNearbyStores, directionsUrl } from '../lib/places.js'
+import { askAI } from '../lib/ai.js'
+import { todayKey } from '../lib/store.js'
+import { useEffect } from 'react'
 
 export default function Inventory({ profile, onBack }) {
   const [p, setP] = useState(profile)
@@ -13,20 +16,76 @@ export default function Inventory({ profile, onBack }) {
   const [liveLoc, setLiveLoc] = useState('')      // fresh GPS just for store links
   const [locMsg, setLocMsg] = useState('')
   const linkLoc = liveLoc || p.location || ''
-  const [stores, setStores] = useState(null)     // {type, list} | {type, error}
-  const [findBusy, setFindBusy] = useState('')
+  const [storeMap, setStoreMap] = useState({})   // { [type]: list | {error} }
+  const [findBusy, setFindBusy] = useState(false)
+  const [compareText, setCompareText] = useState('')
 
-  async function findStores(type) {
-    setFindBusy(type)
-    setStores(null)
-    try {
-      const list = await findNearbyStores(linkLoc, type)
-      setStores({ type, list })
-    } catch (e) {
-      setStores({ type, error: e.message })
-    } finally {
-      setFindBusy('')
+  const shoppingTypes = [...new Set(
+    allItems(p).filter((i) => statusOf(p, i.name) === 'need').map((i) => storeTypeFor(i.cat))
+  )].slice(0, 3)
+
+  // AUTOMATIC: on open (and when the list changes) — grab GPS, fetch real
+  // stores for every store-type on the list, then one cached AI comparison.
+  useEffect(() => {
+    if (!shoppingTypes.length) return
+    let alive = true
+    const run = async (loc) => {
+      setFindBusy(true)
+      const next = {}
+      for (const t of shoppingTypes) {
+        try { next[t] = await findNearbyStores(loc, t) }
+        catch (e) { next[t] = { error: e.message } }
+        if (!alive) return
+        setStoreMap({ ...next })
+      }
+      setFindBusy(false)
+      aiCompare(next, loc)
     }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const loc = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`
+          setLiveLoc(loc)
+          setLocMsg('Using your live location ✓')
+          run(loc)
+        },
+        () => {
+          setLocMsg(p.location ? `Location denied — using your profile location (${p.location}).` : 'Location denied and no profile location set — add a city in Profile.')
+          if (p.location) run(p.location)
+        },
+        { timeout: 8000 }
+      )
+    } else if (p.location) {
+      run(p.location)
+    }
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shoppingTypes.join('|')])
+
+  async function aiCompare(map, loc) {
+    const needList = allItems(p).filter((i) => statusOf(p, i.name) === 'need').map((i) => i.name)
+    if (!needList.length) return
+    const cacheKey = 'sap_storecmp_' + todayKey() + '_' + needList.join('|').length + '_' + Object.keys(map).length
+    try {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) { setCompareText(cached); return }
+    } catch { /* ignore */ }
+    const storesTxt = Object.entries(map)
+      .map(([t, list]) => Array.isArray(list)
+        ? `${t}: ${list.slice(0, 4).map((x) => `${x.name} (${x.km}km)`).join(', ') || 'none found'}`
+        : `${t}: lookup failed`)
+      .join(' | ')
+    try {
+      const reply = await askAI({
+        profile: p,
+        messages: [{
+          role: 'user',
+          text: `My shopping list: ${needList.join(', ')}. Real stores near me right now: ${storesTxt}. In under 120 words: recommend where to buy what — group items per best store, factor distance, typical price level and quality of these store types, and say which items are usually cheaper online. Do not invent exact prices.`,
+        }],
+      })
+      setCompareText(reply)
+      try { localStorage.setItem(cacheKey, reply) } catch { /* full */ }
+    } catch { /* AI quota — the store list still shows */ }
   }
 
   function useLiveLocation() {
@@ -79,8 +138,8 @@ export default function Inventory({ profile, onBack }) {
       {onBack && <button className="mini ghost" type="button" onClick={onBack} style={{ marginBottom: 10 }}>← Back</button>}
       <h1>🎒 Inventory</h1>
       <p className="dim small" style={{ marginBottom: 12 }}>
-        One list for everything you own or need — food, supplements, skin, hair.
-        Diet and Care read from here. (Style keeps its own photographed wardrobe.)
+        One list for everything you own or need — food, supplements, skin, hair,
+        clothes. Diet, Care and Style all read from here.
       </p>
       <div className="row" style={{ marginBottom: 12 }}>
         <button className="mini ghost" type="button" onClick={useLiveLocation}>📍 Use my live location for store links</button>
@@ -141,37 +200,38 @@ export default function Inventory({ profile, onBack }) {
             the map (live distance, hours, ratings); 🌐 opens live online
             listings with prices.
           </p>
-          <div className="chips">
-            {[...new Set(shopping.map((i) => storeTypeFor(i.cat)))].map((t) => (
-              <button key={t} type="button" className="chip chip-add" disabled={findBusy === t}
-                onClick={() => findStores(t)}>
-                {findBusy === t ? '📡 finding…' : `📍 ${t} near you`}
-              </button>
-            ))}
-          </div>
-          {stores && (
-            <div className="analysis" style={{ marginBottom: 12 }}>
-              {stores.error && <p className="small">⚠️ {stores.error}</p>}
-              {stores.list && stores.list.length === 0 && (
-                <p className="small dim">No mapped {stores.type} found within 3 km — try the 🗺 map link on an item instead.</p>
-              )}
-              {stores.list && stores.list.map((st) => (
-                <div className="todo-row" key={st.name + st.km}>
-                  <div style={{ flex: 1 }}>
-                    <span className="small"><strong>{st.name}</strong></span>
-                    <div className="dim" style={{ fontSize: 11.5 }}>{st.km} km{st.kind ? ` · ${st.kind}` : ''}{st.addr ? ` · ${st.addr}` : ''}</div>
+          {findBusy && <p className="dim small" style={{ marginBottom: 8 }}>📡 Finding real stores around you…</p>}
+          {shoppingTypes.map((t) => {
+            const res = storeMap[t]
+            if (!res) return null
+            return (
+              <div key={t} className="analysis" style={{ marginBottom: 10 }}>
+                <p className="small" style={{ marginBottom: 6 }}><strong>📍 {t} near you</strong></p>
+                {res.error && <p className="small dim">⚠️ {res.error}</p>}
+                {Array.isArray(res) && res.length === 0 && (
+                  <p className="small dim">None mapped within 3 km — try the 🗺 link on an item.</p>
+                )}
+                {Array.isArray(res) && res.map((st, idx) => (
+                  <div className="todo-row" key={st.name + st.km}>
+                    <div style={{ flex: 1 }}>
+                      <span className="small"><strong>{st.name}</strong>{idx === 0 ? ' ⭐ closest' : ''}</span>
+                      <div className="dim" style={{ fontSize: 11.5 }}>{st.km} km{st.kind ? ` · ${st.kind}` : ''}{st.addr ? ` · ${st.addr}` : ''}</div>
+                    </div>
+                    <a className="mini ghost" style={{ textDecoration: 'none', padding: '6px 10px' }}
+                      href={directionsUrl(st)} target="_blank" rel="noreferrer">Go</a>
                   </div>
-                  <a className="mini ghost" style={{ textDecoration: 'none', padding: '6px 10px' }}
-                    href={directionsUrl(st)} target="_blank" rel="noreferrer">Directions</a>
-                </div>
-              ))}
-              {stores.list && stores.list.length > 0 && (
-                <p className="dim" style={{ fontSize: 11, marginTop: 6 }}>
-                  Real stores from OpenStreetMap with live distance from you. Shelf prices &
-                  ratings aren’t in free data — the Directions link opens Maps, which shows
-                  hours and ratings; the Assistant can give typical price ranges.
-                </p>
-              )}
+                ))}
+              </div>
+            )
+          })}
+          {compareText && (
+            <div className="analysis" style={{ marginBottom: 12 }}>
+              <p className="small" style={{ marginBottom: 6 }}><strong>🧠 Best-buy comparison</strong></p>
+              <p className="small" style={{ whiteSpace: 'pre-wrap' }}>{compareText}</p>
+              <p className="dim" style={{ fontSize: 11, marginTop: 6 }}>
+                Distances are live from your location; price/quality guidance is the AI's
+                typical-range judgment — exact shelf prices aren't in any free data source.
+              </p>
             </div>
           )}
           {shopping.map((i) => (

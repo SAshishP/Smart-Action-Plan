@@ -9,9 +9,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      // registerType only affects generateSW builds — under injectManifest,
-      // src/sw.js's own skipWaiting()/clients.claim() calls are what make
-      // updates take effect immediately; main.jsx reloads the tab on top of that.
+      registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png'],
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}']

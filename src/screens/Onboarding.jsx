@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ageFromDob } from '../lib/store.js'
 import { compressImage } from '../lib/img.js'
 
@@ -39,18 +39,6 @@ export default function Onboarding({ onDone }) {
   const set = (key) => (e) => setF((old) => ({ ...old, [key]: e.target.value }))
   const age = ageFromDob(f.dob)
 
-  // Without this, the phone's back button/gesture has no in-app history to
-  // pop and just exits the whole app mid-flow. Push a history entry per step
-  // so back moves through onboarding instead of closing it.
-  useEffect(() => {
-    window.history.replaceState({ step: 0 }, '')
-    const onPopState = (e) => {
-      if (typeof e.state?.step === 'number') setStep(e.state.step)
-    }
-    window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
-  }, [])
-
   function useMyLocation() {
     if (!navigator.geolocation) {
       setError('Location is not available on this device — type it instead.')
@@ -90,9 +78,7 @@ export default function Onboarding({ onDone }) {
       if (!f.gender) return setError('Select a gender — the app adapts to it.')
     }
     if (step < STEPS.length - 1) {
-      const nextStep = step + 1
-      window.history.pushState({ step: nextStep }, '')
-      setStep(nextStep)
+      setStep(step + 1)
       window.scrollTo(0, 0)
     } else {
       onDone(f)
@@ -112,9 +98,11 @@ export default function Onboarding({ onDone }) {
           <div className="consent-box">
             <strong>Before you start — please read this.</strong>
             <p style={{ marginTop: 8 }}>
-              SAP is a personal app run by Ashu (the owner). To give you
+              SAP is a personal app run by one person (the owner). To give you
               plans and progress analysis, it stores your profile details,
-              health info, daily logs. No One can ever see your data.
+              health info, daily logs, and the photos you add. <strong>The app
+              owner can see all data you put in this app</strong>, including
+              photos. Other users can never see your data.
             </p>
             <p style={{ marginTop: 8 }}>
               SAP gives lifestyle suggestions only. It is <strong>not medical
@@ -283,7 +271,7 @@ export default function Onboarding({ onDone }) {
 
       <div className="row" style={{ marginTop: 18 }}>
         {step > 0 && (
-          <button className="ghost" type="button" onClick={() => window.history.back()}>Back</button>
+          <button className="ghost" type="button" onClick={() => setStep(step - 1)}>Back</button>
         )}
         <button type="button" onClick={next}>
           {step === STEPS.length - 1 ? 'Create my profile' : 'Continue'}
