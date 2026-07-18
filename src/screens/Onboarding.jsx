@@ -101,8 +101,8 @@ export default function Onboarding({ onDone }) {
               SAP is a personal app run by Ashu(the owner). To give you
               plans and progress analysis, it stores your profile details,
               health info, daily logs. <strong>The app
-              owner can see only this data you put in this app</strong>.
-              No Other users can never see your data.
+              owner can see only this data</strong>.
+              <strong>No-One can ever see your data</strong>.
             </p>
             <p style={{ marginTop: 8 }}>
               SAP gives lifestyle suggestions only. It is <strong>not medical

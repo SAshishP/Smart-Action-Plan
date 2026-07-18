@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { getDay, saveDay, todayKey, waterGoal, getProfile, saveProfile } from '../lib/store.js'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { getDay, saveDay, todayKey, waterGoal } from '../lib/store.js'
+import { stepSensorAvailable, needsMotionPermission, requestMotionPermission, startStepTracking } from '../lib/steps.js'
 import { pullDay } from '../lib/cloud.js'
 import { enablePush } from '../lib/push.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
@@ -98,6 +99,42 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
     setPushBusy(false)
   }
 
+  const [stepTracking, setStepTracking] = useState(false)
+  const [stepMsg, setStepMsg] = useState('')
+  const stopStepsRef = useRef(null)
+
+  useEffect(() => () => stopStepsRef.current?.(), [])
+
+  async function toggleStepTracking() {
+    if (stepTracking) {
+      stopStepsRef.current?.()
+      stopStepsRef.current = null
+      setStepTracking(false)
+      setStepMsg('')
+      return
+    }
+    if (!stepSensorAvailable()) {
+      setStepMsg('This device/browser can’t read motion sensors — add steps manually below.')
+      return
+    }
+    if (needsMotionPermission()) {
+      const perm = await requestMotionPermission()
+      if (perm !== 'granted') {
+        setStepMsg('Motion permission was not allowed — add steps manually below.')
+        return
+      }
+    }
+    stopStepsRef.current = startStepTracking(() => {
+      setDay((d) => {
+        const next = { ...d, steps: d.steps + 1 }
+        saveDay(next, todayKey())
+        return next
+      })
+    })
+    setStepTracking(true)
+    setStepMsg('📡 Auto-tracking steps from your phone’s motion sensor — keep SAP open while you walk.')
+  }
+
   return (
     <div className="screen with-tabbar">
       <header className="dash-head">
@@ -172,10 +209,24 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
         <div className="tracker">
           <div className="t-label">Steps</div>
           <div className="t-value">{day.steps.toLocaleString()}</div>
-          <div className="stepper">
-            <button type="button" onClick={() => update({ steps: Math.max(0, day.steps - 500) })}>−500</button>
-            <button type="button" onClick={() => update({ steps: day.steps + 500 })}>+500</button>
-          </div>
+          {stepTracking ? (
+            <button className="mini" type="button" onClick={toggleStepTracking}>⏸ Stop auto-track</button>
+          ) : (
+            <>
+              <input
+                type="number" inputMode="numeric" min="0" step="1"
+                value={day.steps || ''}
+                onChange={(e) => update({ steps: Math.max(0, num(e.target.value)) })}
+                placeholder="e.g. 4500"
+              />
+              {stepSensorAvailable() && (
+                <button className="mini ghost" type="button" style={{ marginTop: 6, width: '100%' }} onClick={toggleStepTracking}>
+                  📡 Auto-track with sensor
+                </button>
+              )}
+            </>
+          )}
+          {stepMsg && <p className="dim small" style={{ marginTop: 6 }}>{stepMsg}</p>}
         </div>
 
         <div className="tracker">
@@ -192,12 +243,7 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
         <div className="tracker">
           <div className="t-label">Calories in / burned</div>
           <div className="t-value">{day.calsIn}<small> / {day.calsOut} kcal</small></div>
-          <div className="row">
-            <input type="number" inputMode="numeric" min="0" value={day.calsIn || ''}
-              onChange={(e) => update({ calsIn: num(e.target.value) })} placeholder="in" />
-            <input type="number" inputMode="numeric" min="0" value={day.calsOut || ''}
-              onChange={(e) => update({ calsOut: num(e.target.value) })} placeholder="burn" />
-          </div>
+          <p className="dim small" style={{ marginTop: 6 }}>Auto-tracked from 🍽️ Diet and 💪 Workout.</p>
         </div>
       </div>
 
@@ -253,9 +299,6 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
       {pushMsg && (
         <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{pushMsg}</p>
       )}
-      <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
-        Workout · Diet · Skin & Hair · Style modules unlock in the next update.
-      </p>
     </div>
   )
 }
