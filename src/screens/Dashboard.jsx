@@ -256,11 +256,6 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
       <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>
         Workout · Diet · Skin & Hair · Style modules unlock in the next update.
       </p>
-      {onSignOut && (
-        <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={onSignOut}>
-          Sign out
-        </button>
-      )}
     </div>
   )
 }
