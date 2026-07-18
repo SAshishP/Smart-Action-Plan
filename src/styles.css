@@ -377,3 +377,9 @@ button.mini {
 .badge-tile .be { font-size: 22px; }
 .badge-tile .bn { font-size: 11.5px; font-weight: 700; }
 .badge-tile .bh { font-size: 9.5px; line-height: 1.25; }
+
+/* ---- stability & calm polish ---- */
+.screen { animation: screenIn 0.22s ease both; }
+@keyframes screenIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .screen { animation: none; } }
+.err-card { border-color: var(--danger); }

@@ -100,6 +100,9 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
         <input type="file" accept="image/*" onChange={addPhoto} />
       </label>
       {latest && <p className="dim small">Last added: {latest.date} · {list.length} photo{list.length > 1 ? 's' : ''} tracked</p>}
+      {list.length > 0 && !busy && (
+        <button className="mini ghost" type="button" onClick={analyze}>🔁 Re-run analysis</button>
+      )}
       {busy && <p className="dim small">✨ Analyzing…</p>}
       {msg && <p className="dim small" style={{ marginTop: 8 }}>{msg}</p>}
       {analysis && <div className="analysis small">{analysis}</div>}

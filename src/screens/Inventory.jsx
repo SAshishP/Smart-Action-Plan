@@ -17,6 +17,7 @@ export default function Inventory({ profile, onBack }) {
   const [locMsg, setLocMsg] = useState('')
   const linkLoc = liveLoc || p.location || ''
   const [storeMap, setStoreMap] = useState({})   // { [type]: list | {error} }
+  const [refreshKey, setRefreshKey] = useState(0)
   const [findBusy, setFindBusy] = useState(false)
   const [compareText, setCompareText] = useState('')
 
@@ -60,7 +61,7 @@ export default function Inventory({ profile, onBack }) {
     }
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shoppingTypes.join('|')])
+  }, [shoppingTypes.join('|'), refreshKey])
 
   async function aiCompare(map, loc) {
     const needList = allItems(p).filter((i) => statusOf(p, i.name) === 'need').map((i) => i.name)
@@ -88,16 +89,11 @@ export default function Inventory({ profile, onBack }) {
     } catch { /* AI quota — the store list still shows */ }
   }
 
-  function useLiveLocation() {
-    if (!navigator.geolocation) { setLocMsg('GPS not available — links will use your profile location.'); return }
-    setLocMsg('Getting your location…')
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLiveLoc(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`)
-        setLocMsg('Store links now use your live location ✓')
-      },
-      () => setLocMsg('Location denied — links will use your profile location instead.')
-    )
+  function refreshStores() {
+    setStoreMap({})
+    setCompareText('')
+    setLocMsg('')
+    setRefreshKey((k) => k + 1)
   }
 
   const { have, need } = counts(p)
@@ -142,7 +138,7 @@ export default function Inventory({ profile, onBack }) {
         clothes. Diet, Care and Style all read from here.
       </p>
       <div className="row" style={{ marginBottom: 12 }}>
-        <button className="mini ghost" type="button" onClick={useLiveLocation}>📍 Use my live location for store links</button>
+        <button className="mini ghost" type="button" onClick={refreshStores}>📍 Refresh location & stores</button>
       </div>
       {locMsg && <p className="dim small" style={{ margin: '-6px 0 10px' }}>{locMsg}</p>}
 

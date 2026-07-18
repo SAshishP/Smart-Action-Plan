@@ -106,3 +106,15 @@ monthly review, transformation strip, your why + affirmations) · ✨ AI
 **Ship an update:** edit → git push → Vercel deploys → users' installed apps
 refresh on next open. Server functions redeploy with
 `supabase functions deploy <name>` only when you change them.
+
+## If you ever see a problem screen (or before: a blank page)
+
+1. **Deploy rule: always replace the WHOLE folder, never mix old and new
+   files.** Mixed versions are the #1 cause of broken builds.
+2. A "😵 Something went wrong" screen now appears instead of any blank page,
+   with three fixes: Try again · **Reload fresh** (clears a stuck update —
+   use this first) · Reset app data on this phone (cloud data stays).
+3. The app also self-heals automatically: two crashes in a row trigger a
+   cache + service-worker reset on its own.
+4. On iPhone, after any deploy: force-close the installed app and reopen it
+   once to pick up the update.

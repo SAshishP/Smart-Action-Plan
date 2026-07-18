@@ -291,6 +291,9 @@ export default function Workout({ profile }) {
           <input type="file" accept="image/*" onChange={addProgressPhoto} />
         </label>
         {latestThumb && <p className="dim small">Last added: {latestThumb.date} · {progress.length} photo{progress.length > 1 ? 's' : ''} tracked</p>}
+        {progress.length > 0 && !analyzing && (
+          <button className="mini ghost" type="button" onClick={analyzeProgress}>🔁 Re-run analysis</button>
+        )}
         {analyzing && <p className="dim small">✨ Analyzing your progress…</p>}
         {analysis && <div className="analysis small">{analysis}</div>}
       </section>

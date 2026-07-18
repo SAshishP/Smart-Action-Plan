@@ -13,6 +13,7 @@ import Cycle from './screens/Cycle.jsx'
 import Profile from './screens/Profile.jsx'
 import { runInitialAnalysis } from './lib/analysis.js'
 import Chat from './screens/Chat.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere } from './lib/cloud.js'
@@ -104,6 +105,7 @@ export default function App() {
 
   return (
     <>
+      <ErrorBoundary inline key={tab}>
       {tab === 'home' && <Dashboard profile={profile} onOpenProfile={openProfile} onOpenCycle={openCycle} />}
       {tab === 'workout' && <Workout profile={profile} />}
       {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
@@ -114,6 +116,7 @@ export default function App() {
       {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
       {tab === 'profile' && <Profile profile={profile} onBack={() => setTab(prevTab)} onSignOut={cloudReady ? handleSignOut : null} onProfileUpdate={setProfile} />}
       {tab === 'ai' && <Chat profile={profile} />}
+      </ErrorBoundary>
       <nav className="tabbar">
         {[
           ['home', '🏠', 'Home'],
