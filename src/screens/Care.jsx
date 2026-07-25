@@ -95,10 +95,16 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
         One photo a week, same light & angle. Auto-analyzed against your start —
         see all photos side-by-side in 📊 Stats → Compare my photos.
       </p>
-      <label className="photo-add">
-        📷 Add this week's photo
-        <input type="file" accept="image/*" onChange={addPhoto} />
-      </label>
+      <div className="photo-add-row">
+        <label className="photo-add">
+          📷 Take a photo
+          <input type="file" accept="image/*" capture={initialKey.startsWith('face') ? 'user' : 'environment'} onChange={addPhoto} />
+        </label>
+        <label className="photo-add">
+          🖼 Choose from gallery
+          <input type="file" accept="image/*" onChange={addPhoto} />
+        </label>
+      </div>
       {latest && <p className="dim small">Last added: {latest.date} · {list.length} photo{list.length > 1 ? 's' : ''} tracked</p>}
       {list.length > 0 && !busy && (
         <button className="mini ghost" type="button" onClick={analyze}>🔁 Re-run analysis</button>

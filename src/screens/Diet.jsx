@@ -346,10 +346,16 @@ export default function Diet({ profile, onOpenInventory }) {
         <p className="dim small" style={{ marginBottom: 10 }}>
           Snap your plate — the AI identifies it and estimates the calories.
         </p>
-        <label className="photo-add">
-          {foodPhotoBusy ? 'Analyzing your plate…' : 'Take / choose a food photo'}
-          <input type="file" accept="image/*" onChange={foodPhoto} disabled={foodPhotoBusy} />
-        </label>
+        <div className="photo-add-row">
+          <label className="photo-add">
+            {foodPhotoBusy ? 'Analyzing your plate…' : '📷 Take a photo'}
+            <input type="file" accept="image/*" capture="environment" onChange={foodPhoto} disabled={foodPhotoBusy} />
+          </label>
+          <label className="photo-add">
+            {foodPhotoBusy ? 'Analyzing your plate…' : '🖼 Choose from gallery'}
+            <input type="file" accept="image/*" onChange={foodPhoto} disabled={foodPhotoBusy} />
+          </label>
+        </div>
         {photoResult && (
           <div className="analysis small">
             {photoResult.text}

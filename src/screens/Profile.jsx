@@ -103,7 +103,17 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
           {PHOTO_SLOTS.map(([slot, label]) => (
             <div className="photo-slot" key={slot}>
               {p.photos?.[slot] ? <img src={p.photos[slot]} alt={label} /> : <span>{label}<br />＋</span>}
-              <input type="file" accept="image/*" onChange={(e) => replacePhoto(slot, e)} aria-label={label} />
+              <div className="photo-slot-actions">
+                <label className="photo-slot-btn" aria-label={`Take photo — ${label}`}>
+                  📷
+                  <input type="file" accept="image/*" capture={slot.startsWith('face') ? 'user' : 'environment'}
+                    onChange={(e) => replacePhoto(slot, e)} />
+                </label>
+                <label className="photo-slot-btn" aria-label={`Choose from gallery — ${label}`}>
+                  🖼
+                  <input type="file" accept="image/*" onChange={(e) => replacePhoto(slot, e)} />
+                </label>
+              </div>
             </div>
           ))}
         </div>

@@ -258,8 +258,17 @@ export default function Onboarding({ onDone }) {
                 {f.photos[slot.key]
                   ? <img src={f.photos[slot.key]} alt={slot.label} />
                   : <span>{slot.label}<br />＋</span>}
-                <input type="file" accept="image/*"
-                  onChange={(e) => onPhoto(slot.key, e)} aria-label={slot.label} />
+                <div className="photo-slot-actions">
+                  <label className="photo-slot-btn" aria-label={`Take photo — ${slot.label}`}>
+                    📷
+                    <input type="file" accept="image/*" capture={slot.key.startsWith('face') ? 'user' : 'environment'}
+                      onChange={(e) => onPhoto(slot.key, e)} />
+                  </label>
+                  <label className="photo-slot-btn" aria-label={`Choose from gallery — ${slot.label}`}>
+                    🖼
+                    <input type="file" accept="image/*" onChange={(e) => onPhoto(slot.key, e)} />
+                  </label>
+                </div>
               </div>
             ))}
           </div>

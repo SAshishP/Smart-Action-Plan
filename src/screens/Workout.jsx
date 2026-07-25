@@ -286,10 +286,16 @@ export default function Workout({ profile }) {
           starting point automatically — view all photos side-by-side anytime in
           📊 Stats → Compare my photos.
         </p>
-        <label className="photo-add">
-          📷 Add this week's photo
-          <input type="file" accept="image/*" onChange={addProgressPhoto} />
-        </label>
+        <div className="photo-add-row">
+          <label className="photo-add">
+            📷 Take a photo
+            <input type="file" accept="image/*" capture="environment" onChange={addProgressPhoto} />
+          </label>
+          <label className="photo-add">
+            🖼 Choose from gallery
+            <input type="file" accept="image/*" onChange={addProgressPhoto} />
+          </label>
+        </div>
         {latestThumb && <p className="dim small">Last added: {latestThumb.date} · {progress.length} photo{progress.length > 1 ? 's' : ''} tracked</p>}
         {progress.length > 0 && !analyzing && (
           <button className="mini ghost" type="button" onClick={analyzeProgress}>🔁 Re-run analysis</button>
