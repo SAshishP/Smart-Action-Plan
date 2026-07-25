@@ -71,6 +71,55 @@ export function logPeriodPatch(profile = {}, dateKey) {
   return { lastPeriodStart: d, periodHistory: history.slice(-12) }
 }
 
+// Calendar marks: logged period days (5 from each start), next predicted
+// period, and the fertile window.
+export function calendarMarks(profile = {}) {
+  const marks = {}
+  const len = cycleLength(profile)
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const bleedDays = Math.max(3, Math.round(5 * (len / 28)))
+
+  for (const start of profile.periodHistory || []) {
+    const s0 = new Date(start)
+    if (isNaN(s0)) continue
+    marks[iso(s0)] = 'period'
+    for (let i = 1; i < bleedDays; i++) {
+      const d = new Date(s0.getTime() + i * 86400000)
+      if (!marks[iso(d)]) marks[iso(d)] = 'period'
+    }
+  }
+
+  if (profile.lastPeriodStart) {
+    const last = new Date(profile.lastPeriodStart)
+    if (!isNaN(last)) {
+      // next two predicted cycles
+      for (let c = 1; c <= 2; c++) {
+        const next = new Date(last.getTime() + len * c * 86400000)
+        for (let i = 0; i < bleedDays; i++) {
+          const d = new Date(next.getTime() + i * 86400000)
+          if (!marks[iso(d)]) marks[iso(d)] = 'predicted'
+        }
+        const ov = new Date(next.getTime() - 14 * 86400000)
+        for (let i = -4; i <= 0; i++) {
+          const d = new Date(ov.getTime() + i * 86400000)
+          if (!marks[iso(d)]) marks[iso(d)] = 'fertile'
+        }
+      }
+    }
+  }
+  return marks
+}
+
+// Toggle a date in the history (add if absent, remove if present)
+export function toggleDatePatch(profile = {}, dateKey) {
+  const hist = profile.periodHistory || []
+  const next = hist.includes(dateKey)
+    ? hist.filter((d) => d !== dateKey)
+    : [...hist, dateKey].sort()
+  const trimmed = next.slice(-24)
+  return { periodHistory: trimmed, lastPeriodStart: trimmed.length ? trimmed[trimmed.length - 1] : '' }
+}
+
 export const PHASE_GUIDE = {
   menstrual: {
     title: 'Menstrual (period days)',

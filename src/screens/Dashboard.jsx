@@ -21,7 +21,7 @@ function cyclePhase(dayOfCycle) {
   return 'Luteal phase — go gentler, expect cravings, magnesium helps.'
 }
 
-export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
+export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenRoutine }) {
   const [day, setDay] = useState(() => getDay())
   const [todoText, setTodoText] = useState('')
   const [lastPeriod, setLastPeriod] = useState(profile.lastPeriodStart || '')
@@ -176,6 +176,11 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle }) {
 
       <section className="card">
         <h2>Your day, morning to night</h2>
+        {onOpenRoutine && (
+          <button className="mini ghost" type="button" onClick={onOpenRoutine} style={{ marginBottom: 10 }}>
+            ✏️ Edit my routine (add prayer, class, meds…)
+          </button>
+        )}
         <div className="arc">
           {plan.map((item) => (
             <div

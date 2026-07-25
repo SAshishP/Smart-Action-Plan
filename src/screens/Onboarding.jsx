@@ -98,9 +98,8 @@ export default function Onboarding({ onDone }) {
           <div className="consent-box">
             <strong>Before you start — please read this.</strong>
             <p style={{ marginTop: 8 }}>
-              SAP is a personal app run by Ashu(the owner). To give you
-              plans and progress analysis, it stores your profile details,
-              health info, daily logs. <strong>The app
+              SAP is a personal app run by the owner. To give you
+              plans and progress analysis, it stores your daily logs. <strong>The app
               owner can see only this data</strong>.
               <strong>No-One can ever see your data</strong>.
             </p>

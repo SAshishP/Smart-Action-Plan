@@ -118,3 +118,29 @@ refresh on next open. Server functions redeploy with
    cache + service-worker reset on its own.
 4. On iPhone, after any deploy: force-close the installed app and reopen it
    once to pick up the update.
+
+## v4 upgrades
+
+- **Cycle calendar** — tap any past day on a real calendar (Cycle tab) to log
+  or un-log a period start; period history now shows a running count, days
+  since the previous one, and a delete button per entry. Added Anxiety, Low
+  mood and Irritable to the symptom list.
+- **"Edit my routine"** (Home) — add your own daily items (prayer, meds,
+  class, commute…) with times and day-of-week filters, hide any default plan
+  item you don't do, and preview the resulting day.
+- **"Timeline to my goal"** (Stats) — projects a date you'll hit your target
+  weight from your real weigh-ins (or estimates from your calorie target),
+  with milestones. Set your target weight from Profile or directly on Stats.
+- **Smarter allergy filtering** — an allergy to an ingredient (e.g. soy) now
+  also blocks foods made from it (tofu, miso, tempeh, etc.) instead of only
+  matching the literal word.
+- **Medication-food interactions** (Diet) — informational warnings for common
+  interactions (e.g. grapefruit + statins), never "stop taking" advice.
+- **Today's calories bar** (Diet) — eaten / left / burned at a glance, plus a
+  "log what you actually ate" flow (typed, with optional AI calorie estimate)
+  that can replace a planned meal.
+- **Care reorder** — Precautions now shows right after the weather info
+  instead of near the bottom of the page.
+- **Persistent AI chat** — Assistant conversations now survive switching tabs
+  or closing the app (stored on-device only, not synced to the cloud yet),
+  with a Clear button to start fresh.

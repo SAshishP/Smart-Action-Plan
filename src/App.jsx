@@ -11,6 +11,7 @@ import Analysis from './screens/Analysis.jsx'
 import Inventory from './screens/Inventory.jsx'
 import Cycle from './screens/Cycle.jsx'
 import Profile from './screens/Profile.jsx'
+import Routine from './screens/Routine.jsx'
 import { runInitialAnalysis } from './lib/analysis.js'
 import Chat from './screens/Chat.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -26,6 +27,7 @@ export default function App() {
   const [prevTab, setPrevTab] = useState('home')
   const openInventory = () => { setPrevTab(tab); setTab('inv') }
   const openProfile = () => { setPrevTab(tab); setTab('profile') }
+  const openRoutine = () => { setPrevTab(tab); setTab('routine') }
   const openCycle = () => setTab('cycle')
 
   function autoAnalyze(prof) {
@@ -106,7 +108,7 @@ export default function App() {
   return (
     <>
       <ErrorBoundary inline key={tab}>
-      {tab === 'home' && <Dashboard profile={profile} onOpenProfile={openProfile} onOpenCycle={openCycle} />}
+      {tab === 'home' && <Dashboard profile={profile} onOpenProfile={openProfile} onOpenCycle={openCycle} onOpenRoutine={openRoutine} />}
       {tab === 'workout' && <Workout profile={profile} />}
       {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
       {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} />}
@@ -114,6 +116,7 @@ export default function App() {
       {tab === 'stats' && <Analysis profile={profile} />}
       {tab === 'inv' && <Inventory profile={profile} />}
       {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
+      {tab === 'routine' && <Routine profile={profile} onBack={() => setTab(prevTab)} onProfileUpdate={setProfile} />}
       {tab === 'profile' && <Profile profile={profile} onBack={() => setTab(prevTab)} onSignOut={cloudReady ? handleSignOut : null} onProfileUpdate={setProfile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       </ErrorBoundary>

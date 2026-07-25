@@ -7,6 +7,7 @@ import { calorieTarget } from '../lib/nutrition.js'
 import { askAI } from '../lib/ai.js'
 import { getDay, saveDay, todayKey } from '../lib/store.js'
 import { computeGame, earnedBadges } from '../lib/game.js'
+import { goalTimeline, milestones } from '../lib/goals.js'
 
 export default function Analysis({ profile }) {
   const [p, setP] = useState(profile)
@@ -18,6 +19,16 @@ export default function Analysis({ profile }) {
   const [reviewBusy, setReviewBusy] = useState(false)
   const [showPhotos, setShowPhotos] = useState(false)
   const [weightInput, setWeightInput] = useState('')
+  const [targetInput, setTargetInput] = useState(profile.targetWeight || '')
+
+  function saveTarget() {
+    const kg = parseFloat(targetInput)
+    if (!kg || kg < 25 || kg > 350) { setWeightMsg('Enter a target weight in kg.'); return }
+    const np = { ...getProfile(), targetWeight: kg }
+    saveProfile(np)
+    setP(np)
+    setWeightMsg(`Target set to ${kg} kg ✓`)
+  }
   const [weightMsg, setWeightMsg] = useState('')
 
   function logWeight() {
@@ -115,6 +126,57 @@ export default function Analysis({ profile }) {
         <div className="analysis small" style={{ marginTop: 12 }}>
           {affirmationOfTheDay(p.name)}
         </div>
+      </section>
+
+      <section className="card">
+        <h2>⏳ Timeline to my goal</h2>
+        {(() => {
+          const tl = goalTimeline(p, history || [])
+          if (!tl.ready) {
+            return (
+              <>
+                <p className="dim small" style={{ marginBottom: 10 }}>{tl.why}</p>
+                <div className="row">
+                  <input type="number" inputMode="decimal" step="0.5" value={targetInput}
+                    onChange={(e) => setTargetInput(e.target.value)} placeholder="Target weight (kg)" />
+                  <button type="button" onClick={saveTarget} style={{ width: 'auto' }}>Set</button>
+                </div>
+              </>
+            )
+          }
+          if (tl.done) {
+            return <><p className="quote">{tl.headline}</p><p className="dim small" style={{ marginTop: 6 }}>{tl.note}</p></>
+          }
+          return (
+            <>
+              <p className="quote">{tl.headline}</p>
+              <div className="chips" style={{ marginTop: 10 }}>
+                <span className="chip">📍 now {tl.current} kg</span>
+                <span className="chip">🎯 target {tl.target} kg</span>
+                <span className="chip">📈 {tl.ratePerWeek} kg/week</span>
+                <span className="chip">🗓 ~{tl.etaDate}</span>
+              </div>
+              <p className="dim small" style={{ marginTop: 8 }}>{tl.note}</p>
+              {tl.warn && <p className="small no" style={{ marginTop: 6 }}>⚠️ {tl.warn}</p>}
+              {milestones(tl).length > 0 && (
+                <>
+                  <p className="small" style={{ margin: '12px 0 4px' }}><strong>Milestones</strong></p>
+                  {milestones(tl).map((m, i) => (
+                    <div className="todo-row" key={i}>
+                      <span style={{ flex: 1 }} className="small">{m.label} → {m.weight} kg</span>
+                      <span className="dim small">{m.when}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+              <div className="row" style={{ marginTop: 10 }}>
+                <input type="number" inputMode="decimal" step="0.5" value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)} placeholder="Change target (kg)" />
+                <button className="ghost" type="button" onClick={saveTarget} style={{ width: 'auto' }}>Update</button>
+              </div>
+            </>
+          )
+        })()}
       </section>
 
       {!history ? (

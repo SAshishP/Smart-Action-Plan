@@ -29,8 +29,9 @@ export function generatePlan(profile = {}) {
 
   const items = []
   let id = 0
-  const add = (time, title, detail) =>
-    items.push({ id: `p${id++}`, time: fmt(time), min: time, title, detail })
+  const add = (time, title, detail, customId) =>
+    items.push({ id: customId || `p${id++}`, time: fmt(time), min: time, title, detail,
+      custom: Boolean(customId) })
 
   add(wake, 'Wake up', 'Open the curtains — light first, phone later.')
   add(wake + 5, 'Drink water', '1 full glass before anything else.')
@@ -62,7 +63,27 @@ export function generatePlan(profile = {}) {
     : 'Cleanse + moisturize.')
   add(sleep, 'Sleep', 'Phone on the other side of the room.')
 
-  return items.sort((a, b) => a.min - b.min)
+  // ---- the user's own routine items (prayer, class, meds, commute, anything) ----
+  const todayDow = new Date().getDay()
+  for (const c of profile.customRoutine || []) {
+    if (!c || !c.title) continue
+    if (Array.isArray(c.days) && c.days.length && !c.days.includes(todayDow)) continue
+    add(toMin(c.time, 8 * 60), c.title, c.detail || '', c.id || `c${Math.random()}`)
+  }
+
+  // ---- items the user chose to hide from their day ----
+  const hidden = profile.hiddenPlanTitles || []
+  return items
+    .filter((i) => !hidden.includes(i.title))
+    .sort((a, b) => a.min - b.min)
+}
+
+export const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// Every title the generator can produce (for the hide/show editor)
+export function baseTitles(profile = {}) {
+  const plain = generatePlan({ ...profile, customRoutine: [], hiddenPlanTitles: [] })
+  return plain.map((i) => i.title)
 }
 
 const QUOTES = [

@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { calorieTarget, proteinTarget } from '../lib/nutrition.js'
-import { planMeals, pantryMatch, RECIPES } from '../lib/recipes.js'
+import { planMeals, pantryMatch, recipeConcerns } from '../lib/recipes.js'
 import { searchWorldFoods } from '../lib/foods.js'
 import { haveFoodNames, addCustomPatch, setStatusPatch, allItems, statusOf } from '../lib/inventory.js'
 import { cycleInfo } from '../lib/exercises.js'
+import { medicationFlags } from '../lib/allergens.js'
 import { getDay, saveDay, todayKey, getProfile, saveProfile } from '../lib/store.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
@@ -22,6 +23,11 @@ export default function Diet({ profile, onOpenInventory }) {
   const [searching, setSearching] = useState(false)
   const [foodPhotoBusy, setFoodPhotoBusy] = useState(false)
   const [photoResult, setPhotoResult] = useState(null) // {text, kcal}
+  const [typed, setTyped] = useState('')
+  const [typedKcal, setTypedKcal] = useState('')
+  const [typedBusy, setTypedBusy] = useState(false)
+  const [typedResult, setTypedResult] = useState(null)  // {text, kcal}
+  const [swapFor, setSwapFor] = useState(null)          // meal slot being replaced
 
   const ci = cycleInfo(p)
   const plan = useMemo(
@@ -61,12 +67,14 @@ export default function Diet({ profile, onOpenInventory }) {
     saveDay(next, todayKey())
   }
 
-  function logMeal(name, kcal) {
+  function logMeal(name, kcal, slot) {
     updateDay({
-      meals: [...(day.meals || []), { id: Date.now(), name, kcal }],
+      meals: [...(day.meals || []), { id: Date.now(), name, kcal, slot: slot || null }],
       calsIn: (Number(day.calsIn) || 0) + kcal,
     })
-    setMsg(`Logged ✅ ${name} — ${kcal} kcal added to today.`)
+    setMsg(slot
+      ? `Logged ✅ ${name} (${kcal} kcal) as your ${slot} — plan updated.`
+      : `Logged ✅ ${name} — ${kcal} kcal added to today.`)
   }
 
   function removeMeal(m) {
@@ -74,6 +82,39 @@ export default function Diet({ profile, onOpenInventory }) {
       meals: (day.meals || []).filter((x) => x.id !== m.id),
       calsIn: Math.max(0, (Number(day.calsIn) || 0) - m.kcal),
     })
+  }
+
+  // Log a meal by typing — works with or without AI
+  function logTypedManual() {
+    const name = typed.trim()
+    const kcal = Math.round(Number(typedKcal))
+    if (!name) { setMsg('Type what you ate first.'); return }
+    if (!kcal || kcal < 1 || kcal > 5000) { setMsg('Enter calories (1–5000), or use ✨ Estimate.'); return }
+    logMeal(name, kcal, swapFor)
+    setTyped(''); setTypedKcal(''); setTypedResult(null); setSwapFor(null)
+  }
+
+  async function estimateTyped() {
+    const name = typed.trim()
+    if (!name) { setMsg('Type what you ate first.'); return }
+    setTypedBusy(true); setTypedResult(null)
+    try {
+      const reply = await askAI({
+        profile: p,
+        messages: [{
+          role: 'user',
+          text: `I ate: "${name}". Estimate the calories for that portion (use typical Indian/home portions if units aren't given). Two short lines max, then exactly one final line: TOTAL_KCAL: <number>`,
+        }],
+      })
+      const m = reply.match(/TOTAL_KCAL:\s*(\d{1,5})/i)
+      const kcal = m ? Number(m[1]) : null
+      setTypedResult({ text: reply.replace(/TOTAL_KCAL:.*/i, '').trim(), kcal })
+      if (kcal) setTypedKcal(String(kcal))
+    } catch (e) {
+      setTypedResult({ text: '⚠️ ' + e.message + ' You can still type the calories manually.', kcal: null })
+    } finally {
+      setTypedBusy(false)
+    }
   }
 
   async function runSearch() {
@@ -122,8 +163,43 @@ export default function Diet({ profile, onOpenInventory }) {
       <div className="chips">
         <span className="chip">🎯 {target} kcal/day</span>
         <span className="chip">🥚 {protein} g protein</span>
-        {profile.dietType && <span className="chip">🍽️ {profile.dietType}</span>}
+        {p.dietType && <span className="chip">🍽️ {p.dietType}</span>}
       </div>
+
+      <section className="card">
+        <h2>Today's calories</h2>
+        <div className="cal-summary">
+          <div><span className="cs-num">{day.calsIn || 0}</span><span className="dim small">eaten</span></div>
+          <div><span className="cs-num">{Math.max(0, target - (Number(day.calsIn) || 0))}</span><span className="dim small">left</span></div>
+          <div><span className="cs-num">{day.calsOut || 0}</span><span className="dim small">burned</span></div>
+        </div>
+        <div className="progressbar" style={{ margin: '10px 0 4px' }}>
+          <i style={{ width: Math.min(100, Math.round(((Number(day.calsIn) || 0) / target) * 100)) + '%',
+            background: (Number(day.calsIn) || 0) > target * 1.1 ? 'var(--danger)' : 'var(--accent)' }} />
+        </div>
+        <p className="dim small">
+          {(Number(day.calsIn) || 0) > target * 1.1
+            ? 'Over target today — one day doesn’t undo a week. Tomorrow continues normally.'
+            : (Number(day.calsIn) || 0) < target * 0.5
+            ? 'Under half your target so far — remember to log everything you eat.'
+            : 'On track. Keep logging.'}
+        </p>
+      </section>
+
+      {medicationFlags(p.medications).length > 0 && (
+        <section className="card">
+          <h2>💊 Food & your medication</h2>
+          {medicationFlags(p.medications).map((f, i) => (
+            <p key={i} className="small" style={{ marginBottom: 8 }}>
+              <strong>{f.foods.slice(0, 4).join(', ')}:</strong> <span className="dim">{f.note}</span>
+            </p>
+          ))}
+          <p className="dim" style={{ fontSize: 11.5 }}>
+            General interaction information, not medical advice — your doctor or
+            pharmacist is the right person to confirm anything here.
+          </p>
+        </section>
+      )}
 
       {ci && (
         <div className="consent-box" style={{ marginBottom: 14 }}>
@@ -150,12 +226,18 @@ export default function Diet({ profile, onOpenInventory }) {
         {Object.entries(plan).map(([meal, r]) => {
           const pm = pantryMatch(r, pantry)
           const open = openMeal === meal
+          const ateInstead = (day.meals || []).find((m) => m.slot === meal)
           return (
             <div key={meal} className="ex-card">
               <div className="ex-head" onClick={() => setOpenMeal(open ? null : meal)}>
                 <div style={{ flex: 1 }}>
                   <div className="dim small">{MEAL_LABEL[meal]}</div>
                   <div className="ex-name">{r.name}</div>
+                  {ateInstead && (
+                    <div className="small" style={{ color: '#7ee2b8' }}>
+                      ✓ You ate {ateInstead.name} ({ateInstead.kcal} kcal) instead
+                    </div>
+                  )}
                   <div className="dim small">
                     {r.kcal} kcal · {r.protein} g protein · ⏱ {r.time} min ·{' '}
                     <span style={{ color: pm.have === pm.total ? '#7ee2b8' : 'var(--accent)' }}>
@@ -188,6 +270,27 @@ export default function Diet({ profile, onOpenInventory }) {
                       Swap
                     </button>
                   </div>
+                  {(() => {
+                    const con = recipeConcerns(r, p)
+                    return (
+                      <>
+                        {con.cautions.map((c, i) => (
+                          <p key={'c' + i} className="small" style={{ color: 'var(--accent)', marginTop: 6 }}>
+                            ⚠️ Contains {c.term} — {c.note}
+                          </p>
+                        ))}
+                        {con.medHits.map((h, i) => (
+                          <p key={'m' + i} className="small" style={{ color: 'var(--accent)', marginTop: 6 }}>
+                            💊 {h.term}: {h.note}
+                          </p>
+                        ))}
+                      </>
+                    )
+                  })()}
+                  <button className="mini ghost" type="button" style={{ marginTop: 8 }}
+                    onClick={() => { setSwapFor(meal); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                    ✍️ I ate something else for {meal}
+                  </button>
                   {pm.missing.length > 0 && (
                     <button className="mini ghost" type="button" style={{ marginTop: 8 }}
                       onClick={() => addMissingToList(pm.missing)}>
@@ -205,6 +308,37 @@ export default function Diet({ profile, onOpenInventory }) {
           )
         })}
         {msg && <p className="dim small" style={{ marginTop: 10, textAlign: 'center' }}>{msg}</p>}
+      </section>
+
+      <section className="card">
+        <h2>✍️ Log what you actually ate</h2>
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          {swapFor
+            ? `This will replace your planned ${swapFor}.`
+            : 'Type it — no photo needed. Add the calories yourself, or let the AI estimate them.'}
+        </p>
+        <input value={typed} onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && estimateTyped()}
+          placeholder="e.g. 2 rotis, dal and salad" style={{ marginBottom: 8 }} />
+        <div className="row">
+          <input type="number" inputMode="numeric" value={typedKcal}
+            onChange={(e) => setTypedKcal(e.target.value)} placeholder="kcal (optional)" />
+          <button className="ghost" type="button" onClick={estimateTyped} disabled={typedBusy}>
+            {typedBusy ? 'Estimating…' : '✨ Estimate'}
+          </button>
+        </div>
+        {typedResult && (
+          <div className="analysis small" style={{ marginTop: 10 }}>
+            {typedResult.text}
+            {typedResult.kcal != null && <p style={{ marginTop: 6 }}><strong>≈ {typedResult.kcal} kcal</strong> — estimate.</p>}
+          </div>
+        )}
+        <div className="row" style={{ marginTop: 10 }}>
+          {swapFor && <button className="ghost" type="button" onClick={() => setSwapFor(null)}>Cancel swap</button>}
+          <button type="button" onClick={logTypedManual}>
+            {swapFor ? `Log as my ${swapFor}` : 'Add to today'}
+          </button>
+        </div>
       </section>
 
       <section className="card">
@@ -234,7 +368,10 @@ export default function Diet({ profile, onOpenInventory }) {
         {(day.meals || []).length === 0 && <p className="dim small">Nothing logged yet.</p>}
         {(day.meals || []).map((m) => (
           <div className="todo-row" key={m.id}>
-            <span style={{ flex: 1 }}>{m.name}</span>
+            <div style={{ flex: 1 }}>
+              <span>{m.name}</span>
+              {m.slot && <div className="dim" style={{ fontSize: 11.5 }}>logged as {m.slot} (instead of the plan)</div>}
+            </div>
             <span className="dim small">{m.kcal} kcal</span>
             <button className="del" type="button" aria-label="Remove" onClick={() => removeMeal(m)}>×</button>
           </div>

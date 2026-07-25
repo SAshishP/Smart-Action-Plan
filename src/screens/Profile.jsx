@@ -116,6 +116,8 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
           <label className="field"><span>Height (cm)</span><input type="number" inputMode="numeric" value={f.height || ''} onChange={set('height')} /></label>
           <label className="field"><span>Weight (kg)</span><input type="number" inputMode="numeric" value={f.weight || ''} onChange={set('weight')} /></label>
         </div>
+        <label className="field"><span>Target weight (kg) — powers your goal timeline</span>
+          <input type="number" inputMode="decimal" step="0.5" value={f.targetWeight || ''} onChange={set('targetWeight')} /></label>
         <label className="field"><span>Goals</span><textarea rows="2" value={f.goals || ''} onChange={set('goals')} /></label>
         <label className="field"><span>Diet type</span>
           <select value={f.dietType || ''} onChange={set('dietType')}>

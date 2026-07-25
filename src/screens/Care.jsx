@@ -224,6 +224,11 @@ export default function Care({ profile, onOpenInventory }) {
           )}
 
           <section className="card">
+            <h2>⚠️ Precautions</h2>
+            {skin.precautions.map((d, i) => <p key={i} className="dim small" style={{ marginBottom: 6 }}>• {d}</p>)}
+          </section>
+
+          <section className="card">
             <h2>🌅 Morning skin routine</h2>
             <p className="dim small" style={{ marginBottom: 6 }}>In this order, ~1 min between layers:</p>
             {skin.am.map((s, i) => <StepRow key={'am' + i} s={s} shelf={shelf} location={p.location} dandruff={p.dandruff} />)}
@@ -249,11 +254,6 @@ export default function Care({ profile, onOpenInventory }) {
             {hair.routine.map((s, i) => <StepRow key={'h' + i} s={s} shelf={shelf} location={p.location} dandruff={p.dandruff} />)}
             <p className="small" style={{ marginTop: 10 }}><strong>Don'ts</strong></p>
             {hair.donts.map((d, i) => <p key={i} className="small no">✗ {d}</p>)}
-          </section>
-
-          <section className="card">
-            <h2>⚠️ Precautions</h2>
-            {skin.precautions.map((d, i) => <p key={i} className="dim small" style={{ marginBottom: 6 }}>• {d}</p>)}
           </section>
 
           {matchKeys(p.analysis?.skinConcerns, SKIN_FIXES).length > 0 && (

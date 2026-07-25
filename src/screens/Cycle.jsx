@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { cycleInfo, predictions, logPeriodPatch, PHASE_GUIDE, cycleLength } from '../lib/cycle.js'
+import { cycleInfo, predictions, logPeriodPatch, PHASE_GUIDE, cycleLength, calendarMarks, toggleDatePatch } from '../lib/cycle.js'
 import { getProfile, saveProfile, getDay, saveDay, todayKey } from '../lib/store.js'
+import Calendar from '../components/Calendar.jsx'
 
 const MOODS = ['😄', '😊', '😐', '😔', '😠', '😰', '🥱', '💪']
 const SYMPTOMS = ['Cramps (mild)', 'Cramps (severe)', 'Headache', 'Bloating', 'Back pain',
   'Breast tenderness', 'Fatigue', 'Insomnia', 'Heavy flow', 'Light flow', 'Spotting',
-  'Mood swings', 'Cravings', 'Acne breakout', 'Nausea']
+  'Mood swings', 'Anxiety', 'Low mood', 'Irritable', 'Cravings', 'Acne breakout', 'Nausea']
 
 export default function Cycle({ profile, onProfileUpdate }) {
   const [p, setP] = useState(profile)
@@ -18,6 +19,13 @@ export default function Cycle({ profile, onProfileUpdate }) {
     const next = { ...day, ...patch }
     setDay(next)
     saveDay(next, todayKey())
+  }
+
+  function pickDate(dateKey) {
+    const np = { ...getProfile(), ...toggleDatePatch(getProfile(), dateKey) }
+    saveProfile(np)
+    setP(np)
+    onProfileUpdate?.(np)
   }
 
   function periodToday() {
@@ -53,6 +61,15 @@ export default function Cycle({ profile, onProfileUpdate }) {
         <button className="ghost" type="button" style={{ marginTop: 12 }} onClick={periodToday}>
           🩸 My period started today
         </button>
+      </section>
+
+      <section className="card">
+        <h2>🗓 Cycle calendar</h2>
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          Tap any past day to mark or unmark the start of a period. Predicted days
+          and your fertile window fill in automatically.
+        </p>
+        <Calendar marks={calendarMarks(p)} onPick={pickDate} />
       </section>
 
       <section className="card">
@@ -117,8 +134,23 @@ export default function Cycle({ profile, onProfileUpdate }) {
 
       {history.length > 0 && (
         <section className="card">
-          <h2>Period history</h2>
-          {history.map((d) => <p key={d} className="dim small">• Started {d}</p>)}
+          <h2>Period history ({(p.periodHistory || []).length})</h2>
+          {history.map((d, i) => {
+            const prev = (p.periodHistory || []).slice().sort()
+            const idx = prev.indexOf(d)
+            const gap = idx > 0 ? Math.round((new Date(d) - new Date(prev[idx - 1])) / 86400000) : null
+            return (
+              <div className="inv-row" key={d}>
+                <div style={{ flex: 1 }}>
+                  <div className="ex-name small">{new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  <div className="dim" style={{ fontSize: 11.5 }}>
+                    {i === 0 ? 'most recent' : ''}{gap ? `${i === 0 ? ' · ' : ''}${gap} days after the previous` : ''}
+                  </div>
+                </div>
+                <button type="button" className="pill" onClick={() => pickDate(d)} aria-label="Remove">🗑</button>
+              </div>
+            )
+          })}
           <p className="dim small" style={{ marginTop: 6 }}>
             Average cycle from your logs: {cycleLength(p)} days — predictions use this, not a fixed 28.
           </p>

@@ -21,7 +21,7 @@ export async function enablePush() {
   if (!supabase) {
     return { ok: false, message: 'Cloud isn’t connected yet (see PHASE2-SETUP.md).' }
   }
-  const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+  const vapidKey = import.meta.env?.VITE_VAPID_PUBLIC_KEY
   if (!vapidKey) {
     return { ok: false, message: 'Push keys aren’t configured yet (see PHASE25-SETUP.md).' }
   }

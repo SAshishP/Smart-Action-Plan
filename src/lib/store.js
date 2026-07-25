@@ -67,6 +67,20 @@ export function saveDay(data, key = todayKey(), opts = {}) {
   return ok
 }
 
+const CHAT_KEY = 'sap_chat_v1'
+
+export function getChatHistory() {
+  return read(CHAT_KEY, [])
+}
+
+export function saveChatHistory(messages) {
+  return write(CHAT_KEY, messages.slice(-60))
+}
+
+export function clearChatHistory() {
+  return write(CHAT_KEY, [])
+}
+
 export function ageFromDob(dob) {
   if (!dob) return ''
   const b = new Date(dob)

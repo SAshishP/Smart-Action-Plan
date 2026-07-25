@@ -1,3 +1,5 @@
+import { buildAvoidance, checkText, recipeText, medicationCautionTerms } from './allergens.js'
+
 // Recipe library + daily meal planner.
 // diets: veg, vegan, egg, nonveg, keto  ·  allergens: dairy, egg, nuts, peanut,
 // gluten, soy, fish  ·  tags: iron (period-friendly), comfort (craving-friendly)
@@ -107,13 +109,24 @@ function dietAllows(recipe, dietType = '') {
   return true // non-vegetarian eats anything
 }
 
+// Family-aware: a soya allergy blocks tofu/tempeh/miso, dairy blocks paneer/ghee, etc.
 function violates(recipe, profile) {
-  const bad = (String(profile.allergies || '') + ',' + String(profile.foodsToAvoid || ''))
-    .toLowerCase().split(/[,;\n]/).map((s) => s.trim()).filter(Boolean)
-  if (!bad.length) return false
-  const text = (recipe.allergens.join(' ') + ' ' + recipe.name + ' ' +
-    recipe.ingredients.map((i) => i[0]).join(' ')).toLowerCase()
-  return bad.some((b) => text.includes(b))
+  const av = buildAvoidance(profile)
+  if (av.terms.size === 0) return false
+  return checkText(recipeText(recipe), av).blocked
+}
+
+// Why was something excluded / what needs care? (for the UI)
+export function recipeConcerns(recipe, profile) {
+  const av = buildAvoidance(profile)
+  const res = checkText(recipeText(recipe), av)
+  const medTerms = medicationCautionTerms(profile.medications)
+  const text = ' ' + recipeText(recipe).toLowerCase() + ' '
+  const medHits = []
+  for (const [term, note] of medTerms) {
+    if (text.includes(term)) medHits.push({ term, note })
+  }
+  return { ...res, medHits }
 }
 
 export function safeRecipes(profile) {

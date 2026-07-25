@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
+import { getChatHistory, saveChatHistory, clearChatHistory } from '../lib/store.js'
 
 export default function Chat({ profile }) {
-  const [messages, setMessages] = useState([
-    { role: 'model', text: `Hi ${String(profile?.name || '').split(' ')[0] || 'there'}! I'm your SAP assistant. Ask me anything — meals, workouts, skin care, your plan — or send a photo of your food and I'll estimate the calories.` },
-  ])
+  const greeting = () => ({ role: 'model', text: `Hi ${String(profile?.name || '').split(' ')[0] || 'there'}! I'm your SAP assistant. Ask me anything — meals, workouts, skin care, your plan — or send a photo of your food and I'll estimate the calories.` })
+  const [messages, setMessages] = useState(() => {
+    const saved = getChatHistory()
+    return saved.length ? saved : [greeting()]
+  })
   const [input, setInput] = useState('')
   const [image, setImage] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -14,6 +17,10 @@ export default function Chat({ profile }) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, busy])
+
+  useEffect(() => {
+    saveChatHistory(messages)
+  }, [messages])
 
   async function attach(e) {
     const file = e.target.files && e.target.files[0]
@@ -24,6 +31,11 @@ export default function Chat({ profile }) {
     } catch {
       setMessages((m) => [...m, { role: 'model', text: 'That photo could not be read — try another one.' }])
     }
+  }
+
+  function clearChat() {
+    setMessages([greeting()])
+    clearChatHistory()
   }
 
   async function send() {
@@ -51,7 +63,10 @@ export default function Chat({ profile }) {
 
   return (
     <div className="screen with-tabbar chat-screen">
-      <h1>Assistant</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Assistant</h1>
+        <button className="mini ghost" type="button" onClick={clearChat}>🗑 Clear</button>
+      </div>
       <p className="dim small" style={{ marginBottom: 14 }}>
         Personal suggestions, not medical advice.
       </p>
