@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { cycleInfo, predictions, logPeriodPatch, PHASE_GUIDE, cycleLength, calendarMarks, toggleDatePatch } from '../lib/cycle.js'
+import { cycleInfo, predictions, logPeriodPatch, PHASE_GUIDE, cycleLength, calendarMarks, toggleDatePatch, periodInstances, removeInstancePatch } from '../lib/cycle.js'
 import { getProfile, saveProfile, getDay, saveDay, todayKey } from '../lib/store.js'
 import Calendar from '../components/Calendar.jsx'
 
@@ -35,7 +35,22 @@ export default function Cycle({ profile, onProfileUpdate }) {
     onProfileUpdate?.(np)
   }
 
-  const history = (p.periodHistory || []).slice(-6).reverse()
+  function setPeriodLength(days) {
+    const np = { ...getProfile(), periodLength: days }
+    saveProfile(np)
+    setP(np)
+    onProfileUpdate?.(np)
+  }
+
+  function removeInstance(run) {
+    const np = { ...getProfile(), ...removeInstancePatch(getProfile(), run) }
+    saveProfile(np)
+    setP(np)
+    onProfileUpdate?.(np)
+  }
+
+  const instances = periodInstances(p)
+  const history = instances.slice(-6).reverse()
 
   return (
     <div className="screen with-tabbar">
@@ -64,10 +79,33 @@ export default function Cycle({ profile, onProfileUpdate }) {
       </section>
 
       <section className="card">
+        <h2>How many days does your period usually last?</h2>
+        <div className="chips">
+          {[3, 5, 7, 8].map((d) => (
+            <button key={d} type="button"
+              className={'chip chip-add' + (p.periodLength === d ? ' chip-on' : '')}
+              onClick={() => setPeriodLength(d)}>
+              {d === 8 ? 'More than 7 days' : `${d} days`}
+            </button>
+          ))}
+        </div>
+        {p.periodLength === 8 && (
+          <p className="small no" style={{ marginTop: 10 }}>
+            Periods lasting more than 7 days can sometimes point to something worth
+            checking — fibroids, a hormonal imbalance, or other causes. It's worth
+            mentioning to a doctor, especially if this is new for you or comes with
+            heavy bleeding.
+          </p>
+        )}
+      </section>
+
+      <section className="card">
         <h2>🗓 Cycle calendar</h2>
         <p className="dim small" style={{ marginBottom: 10 }}>
-          Tap any past day to mark or unmark the start of a period. Predicted days
-          and your fertile window fill in automatically.
+          Tap any day to mark or unmark it as a period day — logging a new period
+          pre-fills your usual length below, so just untap a day it didn't actually
+          cover, or tap more if it runs long. Predicted days and your fertile window
+          fill in automatically.
         </p>
         <Calendar marks={calendarMarks(p)} onPick={pickDate} />
       </section>
@@ -134,20 +172,23 @@ export default function Cycle({ profile, onProfileUpdate }) {
 
       {history.length > 0 && (
         <section className="card">
-          <h2>Period history ({(p.periodHistory || []).length})</h2>
-          {history.map((d, i) => {
-            const prev = (p.periodHistory || []).slice().sort()
-            const idx = prev.indexOf(d)
-            const gap = idx > 0 ? Math.round((new Date(d) - new Date(prev[idx - 1])) / 86400000) : null
+          <h2>Period history ({instances.length})</h2>
+          {history.map((run, i) => {
+            const idx = instances.indexOf(run)
+            const gap = idx > 0 ? Math.round((new Date(run.start) - new Date(instances[idx - 1].start)) / 86400000) : null
+            const label = run.start === run.end
+              ? new Date(run.start).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+              : `${new Date(run.start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – ${new Date(run.end).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
             return (
-              <div className="inv-row" key={d}>
+              <div className="inv-row" key={run.start}>
                 <div style={{ flex: 1 }}>
-                  <div className="ex-name small">{new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                  <div className="ex-name small">{label}</div>
                   <div className="dim" style={{ fontSize: 11.5 }}>
-                    {i === 0 ? 'most recent' : ''}{gap ? `${i === 0 ? ' · ' : ''}${gap} days after the previous` : ''}
+                    {run.days.length} day{run.days.length > 1 ? 's' : ''}
+                    {i === 0 ? ' · most recent' : ''}{gap ? ` · ${gap} days after the previous` : ''}
                   </div>
                 </div>
-                <button type="button" className="pill" onClick={() => pickDate(d)} aria-label="Remove">🗑</button>
+                <button type="button" className="pill" onClick={() => removeInstance(run)} aria-label="Remove">🗑</button>
               </div>
             )
           })}

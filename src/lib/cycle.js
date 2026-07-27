@@ -1,12 +1,51 @@
 // Menstrual cycle engine — history-based cycle length, phase detection for
 // any date, predictions, and the phase guide (diet/workout/relief).
+//
+// profile.periodHistory is a flat list of every individual day the user has
+// marked as a period day (via the calendar or "period started today") — not
+// just start dates. periodRuns() groups consecutive calendar days into real
+// period instances so each one has an accurate start, end and day-count,
+// instead of assuming every period lasts the same guessed length.
+
+// Group a flat list of logged period days into distinct instances (runs of
+// consecutive calendar days). Returns oldest-first: [{ start, end, days }].
+function periodRuns(profile = {}) {
+  const days = [...new Set(profile.periodHistory || [])]
+    .filter((d) => !isNaN(new Date(d)))
+    .sort()
+  const runs = []
+  for (const d of days) {
+    const last = runs[runs.length - 1]
+    const gap = last ? Math.round((new Date(d) - new Date(last.end)) / 86400000) : null
+    if (gap === 1) {
+      last.end = d
+      last.days.push(d)
+    } else {
+      runs.push({ start: d, end: d, days: [d] })
+    }
+  }
+  return runs
+}
+
+// Exposed for the history list — each real period instance with its true
+// start, end and day-count.
+export function periodInstances(profile = {}) {
+  return periodRuns(profile)
+}
+
+// Keep only the days belonging to the most recent `maxRuns` period
+// instances, so storage stays bounded no matter how long a period runs.
+function trimToRecentRuns(periodHistory, maxRuns = 12) {
+  const runs = periodRuns({ periodHistory })
+  return runs.slice(-maxRuns).flatMap((r) => r.days)
+}
 
 export function cycleLength(profile = {}) {
-  const h = (profile.periodHistory || []).slice(-6)
-  if (h.length >= 2) {
+  const runs = periodRuns(profile).slice(-6)
+  if (runs.length >= 2) {
     const gaps = []
-    for (let i = 1; i < h.length; i++) {
-      const g = Math.round((new Date(h[i]) - new Date(h[i - 1])) / 86400000)
+    for (let i = 1; i < runs.length; i++) {
+      const g = Math.round((new Date(runs[i].start) - new Date(runs[i - 1].start)) / 86400000)
       if (g >= 18 && g <= 45) gaps.push(g)
     }
     if (gaps.length) {
@@ -64,34 +103,39 @@ export function predictions(profile = {}) {
   }
 }
 
-// Returns the profile patch for logging a period start today (or a date)
+// Returns the profile patch for logging a period start today (or a given
+// date) — pre-fills the user's usual period length (from the Cycle screen's
+// "how many days does your period usually last" setting) as an editable
+// estimate. Tap the calendar to trim it short or extend it if this one runs
+// long — nothing here is final.
 export function logPeriodPatch(profile = {}, dateKey) {
-  const d = dateKey || new Date().toISOString().slice(0, 10)
-  const history = [...new Set([...(profile.periodHistory || []), d])].sort()
-  return { lastPeriodStart: d, periodHistory: history.slice(-12) }
+  const start = dateKey || new Date().toISOString().slice(0, 10)
+  const len = Number(profile.periodLength) || 5
+  const days = []
+  for (let i = 0; i < len; i++) {
+    days.push(new Date(new Date(start).getTime() + i * 86400000).toISOString().slice(0, 10))
+  }
+  const merged = [...new Set([...(profile.periodHistory || []), ...days])]
+  const periodHistory = trimToRecentRuns(merged, 12)
+  const runs = periodRuns({ periodHistory })
+  return { periodHistory, lastPeriodStart: runs.length ? runs[runs.length - 1].start : start }
 }
 
-// Calendar marks: logged period days (5 from each start), next predicted
-// period, and the fertile window.
+// Calendar marks: every logged period day exactly as logged (no guessing),
+// next predicted period, and the fertile window.
 export function calendarMarks(profile = {}) {
   const marks = {}
   const len = cycleLength(profile)
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  const bleedDays = Math.max(3, Math.round(5 * (len / 28)))
 
-  for (const start of profile.periodHistory || []) {
-    const s0 = new Date(start)
-    if (isNaN(s0)) continue
-    marks[iso(s0)] = 'period'
-    for (let i = 1; i < bleedDays; i++) {
-      const d = new Date(s0.getTime() + i * 86400000)
-      if (!marks[iso(d)]) marks[iso(d)] = 'period'
-    }
+  for (const d of profile.periodHistory || []) {
+    if (!isNaN(new Date(d))) marks[d] = 'period'
   }
 
   if (profile.lastPeriodStart) {
     const last = new Date(profile.lastPeriodStart)
     if (!isNaN(last)) {
+      const bleedDays = Number(profile.periodLength) || Math.max(3, Math.round(5 * (len / 28)))
       // next two predicted cycles
       for (let c = 1; c <= 2; c++) {
         const next = new Date(last.getTime() + len * c * 86400000)
@@ -110,14 +154,25 @@ export function calendarMarks(profile = {}) {
   return marks
 }
 
-// Toggle a date in the history (add if absent, remove if present)
+// Toggle a single day (add if absent, remove if present) — this is how a
+// specific period instance gets edited: untap a day it didn't actually
+// cover, or tap extra days while it's still ongoing.
 export function toggleDatePatch(profile = {}, dateKey) {
   const hist = profile.periodHistory || []
-  const next = hist.includes(dateKey)
+  const nextDays = hist.includes(dateKey)
     ? hist.filter((d) => d !== dateKey)
-    : [...hist, dateKey].sort()
-  const trimmed = next.slice(-24)
-  return { periodHistory: trimmed, lastPeriodStart: trimmed.length ? trimmed[trimmed.length - 1] : '' }
+    : [...hist, dateKey]
+  const periodHistory = trimToRecentRuns(nextDays, 12)
+  const runs = periodRuns({ periodHistory })
+  return { periodHistory, lastPeriodStart: runs.length ? runs[runs.length - 1].start : '' }
+}
+
+// Remove every day belonging to one logged period instance at once (used by
+// the history list's delete button).
+export function removeInstancePatch(profile = {}, run) {
+  const remaining = (profile.periodHistory || []).filter((d) => !run.days.includes(d))
+  const runs = periodRuns({ periodHistory: remaining })
+  return { periodHistory: remaining, lastPeriodStart: runs.length ? runs[runs.length - 1].start : '' }
 }
 
 export const PHASE_GUIDE = {
