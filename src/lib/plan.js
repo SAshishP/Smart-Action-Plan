@@ -22,7 +22,11 @@ export function generatePlan(profile = {}) {
   const wake = toMin(profile.wakeTime, 6 * 60 + 30)
   const workStart = toMin(profile.workStart, 9 * 60)
   const workEnd = toMin(profile.workEnd, 18 * 60)
-  const sleep = toMin(profile.sleepTime, 22 * 60 + 30)
+  const sleepRaw = toMin(profile.sleepTime, 22 * 60 + 30)
+  // A sleep time earlier than wake (e.g. 2:30 AM) actually falls after
+  // midnight — push it a day forward so the evening still sorts and
+  // cascades in order. fmt() below wraps it back to a normal clock time.
+  const sleep = sleepRaw < wake ? sleepRaw + 1440 : sleepRaw
   const goal = (profile.goals || '').toLowerCase()
   const sensitiveSkin =
     profile.skinSensitivity && profile.skinSensitivity !== 'none'
@@ -33,34 +37,82 @@ export function generatePlan(profile = {}) {
     items.push({ id: customId || `p${id++}`, time: fmt(time), min: time, title, detail,
       custom: Boolean(customId) })
 
-  add(wake, 'Wake up', 'Open the curtains — light first, phone later.')
-  add(wake + 5, 'Drink water', '1 full glass before anything else.')
-  add(wake + 15, 'Brush + freshen up', '')
-  add(wake + 25, 'Morning skin care', sensitiveSkin
-    ? 'Gentle cleanser only — your skin is marked sensitive.'
-    : 'Cleanse, moisturize, sunscreen.')
-  if (goal.includes('lose') || goal.includes('fit') || goal.includes('muscle')) {
-    add(wake + 40, 'Morning walk / stretch', '15–20 min to switch the body on.')
+  // Lays out a sequence of steps starting at `from`, spacing each one `gap`
+  // minutes after the last — but compresses every gap by the same ratio if
+  // the whole sequence would otherwise run past `until`. Keeps a tight
+  // schedule in order instead of overlapping or crossing a fixed anchor
+  // like "Work starts" or "Sleep". Returns the time of the last step.
+  function cascade(from, until, steps) {
+    const totalGap = steps.reduce((s, x) => s + x.gap, 0)
+    const budget = Math.max(until - from, 0)
+    const scale = totalGap > 0 ? Math.min(1, budget / totalGap) : 1
+    let t = from
+    for (const s of steps) {
+      t += Math.max(1, Math.round(s.gap * scale))
+      add(t, s.title, s.detail)
+    }
+    return t
   }
-  add(wake + 70, 'Bath', '')
-  add(wake + 90, 'Breakfast', profile.dietType
+
+  add(wake, 'Wake up', 'Open the curtains — light first, phone later.')
+  const morningSteps = [
+    { gap: 5, title: 'Drink water', detail: '1 full glass before anything else.' },
+    { gap: 10, title: 'Brush + freshen up', detail: '' },
+    { gap: 10, title: 'Morning skin care', detail: sensitiveSkin
+      ? 'Gentle cleanser only — your skin is marked sensitive.'
+      : 'Cleanse, moisturize, sunscreen.' },
+  ]
+  if (goal.includes('lose') || goal.includes('fit') || goal.includes('muscle')) {
+    morningSteps.push({ gap: 15, title: 'Morning walk / stretch', detail: '15–20 min to switch the body on.' })
+  }
+  morningSteps.push({ gap: 30, title: 'Bath', detail: '' })
+  morningSteps.push({ gap: 20, title: 'Breakfast', detail: profile.dietType
     ? `Keep it ${profile.dietType} — protein first.`
-    : 'Protein first, sugar last.')
-  add(workStart - 15, 'Dress up', 'Outfit of the day — Style module coming soon.')
+    : 'Protein first, sugar last.' })
+  // Breakfast (the last morning step) always finishes before work starts —
+  // a fixed wake+90 offset alone could otherwise land it right on top of
+  // work on an early or tight-scheduled day.
+  const breakfast = cascade(wake, workStart - 5, morningSteps)
+
+  // "Dress up" always follows breakfast — a work-relative offset alone can
+  // land it before breakfast when wake and workStart are close together.
+  add(Math.max(breakfast + 10, workStart - 15), 'Dress up', 'Outfit of the day — Style module coming soon.')
   add(workStart, 'Work starts', profile.job ? String(profile.job) : '')
-  add(workStart + 120, 'Water check', 'Glass #3 by now?')
-  add(Math.round((workStart + workEnd) / 2), 'Lunch', 'Eat away from the screen.')
-  add(workEnd - 180, 'Snack + water', 'Something light, not fried.')
+
+  // Lunch used to be purely the midpoint of the work hours, with no relation
+  // to breakfast — on an early/short work day that could land it barely an
+  // hour after breakfast. It now always keeps a real gap from breakfast and
+  // stays inside the work window.
+  const workLen = Math.max(workEnd - workStart, 3 * 60)
+  const lunchIdeal = Math.max(workStart + Math.round(workLen / 2), breakfast + 4 * 60, workStart + 90)
+  const lunch = Math.max(Math.min(lunchIdeal, workEnd - 30), workStart + 30)
+  const waterCheck = workStart + 120
+  if (waterCheck > workStart + 20 && waterCheck < lunch - 20) {
+    add(waterCheck, 'Water check', 'Glass #3 by now?')
+  }
+  add(lunch, 'Lunch', 'Eat away from the screen.')
+  const snack = Math.max(lunch + 3 * 60, workEnd - 90)
+  if (snack < workEnd - 15) {
+    add(snack, 'Snack + water', 'Something light, not fried.')
+  }
   add(workEnd, 'Work ends', 'Close the laptop properly.')
-  add(workEnd + 45, 'Workout', goal
-    ? `Focused on: ${profile.goals}. Full plans arrive in the Workout module.`
-    : 'Move for 30–45 min — anything counts.')
-  add(workEnd + 120, 'Dinner', 'Lighter than lunch, 3h before sleep.')
-  add(sleep - 120, 'Me time / family / friends', 'Guilt-free. This is on the plan on purpose.')
-  add(sleep - 45, 'Prep for tomorrow', 'Clothes out, bag packed, one note for morning-you.')
-  add(sleep - 25, 'Night skin care', sensitiveSkin
-    ? 'Fragrance-free moisturizer only.'
-    : 'Cleanse + moisturize.')
+
+  // The evening used to anchor Workout/Dinner off workEnd and the wind-down
+  // block off sleep independently — on a late-work or early-sleep day that
+  // could show "Me time" before "Work ends", or "Dinner" after "Sleep".
+  // Cascading them together keeps the whole evening in order, compressing
+  // gaps if the day genuinely doesn't leave much room before bed.
+  cascade(workEnd, sleep - 5, [
+    { gap: 45, title: 'Workout', detail: goal
+      ? `Focused on: ${profile.goals}. Full plans arrive in the Workout module.`
+      : 'Move for 30–45 min — anything counts.' },
+    { gap: 45, title: 'Dinner', detail: 'Lighter than lunch, ideally a few hours before bed.' },
+    { gap: 60, title: 'Me time / family / friends', detail: 'Guilt-free. This is on the plan on purpose.' },
+    { gap: 75, title: 'Prep for tomorrow', detail: 'Clothes out, bag packed, one note for morning-you.' },
+    { gap: 20, title: 'Night skin care', detail: sensitiveSkin
+      ? 'Fragrance-free moisturizer only.'
+      : 'Cleanse + moisturize.' },
+  ])
   add(sleep, 'Sleep', 'Phone on the other side of the room.')
 
   // ---- the user's own routine items (prayer, class, meds, commute, anything) ----
