@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { getDay, saveDay, todayKey, waterGoal } from '../lib/store.js'
-import { stepSensorAvailable, needsMotionPermission, requestMotionPermission, startStepTracking } from '../lib/steps.js'
+import { stepSensorAvailable, needsMotionPermission, requestMotionPermission, startStepTracking, stepCalories, workoutBurn, totalBurn } from '../lib/steps.js'
 import { pullDay } from '../lib/cloud.js'
 import { enablePush } from '../lib/push.js'
 import { generatePlan, quoteOfTheDay } from '../lib/plan.js'
@@ -41,6 +41,19 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
     return () => { alive = false }
   }, [])
 
+  // Self-heal today's stored burn so Stats/history match the meter even after a
+  // weight change (step calories scale with body weight). No-op when in sync.
+  useEffect(() => {
+    setDay((d) => {
+      const wc = workoutBurn(d)
+      const calsOut = wc + stepCalories(d.steps, profile.weight)
+      if (calsOut === d.calsOut && wc === (d.workoutCals ?? wc)) return d
+      const next = { ...d, workoutCals: wc, calsOut }
+      saveDay(next, todayKey())
+      return next
+    })
+  }, [profile.weight]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const plan = useMemo(() => generatePlan(profile), [profile])
   const goal = waterGoal(profile)
   const dateLabel = new Date().toLocaleDateString(undefined, {
@@ -55,6 +68,12 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
 
   function togglePlan(id) {
     update({ planDone: { ...day.planDone, [id]: !day.planDone[id] } })
+  }
+
+  // Steps feed the burn meter: total burned = logged workouts + walking.
+  function setSteps(steps) {
+    const wc = workoutBurn(day)
+    update({ steps, workoutCals: wc, calsOut: wc + stepCalories(steps, profile.weight) })
   }
 
   function addTodo() {
@@ -126,7 +145,9 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
     }
     stopStepsRef.current = startStepTracking(() => {
       setDay((d) => {
-        const next = { ...d, steps: d.steps + 1 }
+        const steps = d.steps + 1
+        const wc = workoutBurn(d)
+        const next = { ...d, steps, workoutCals: wc, calsOut: wc + stepCalories(steps, profile.weight) }
         saveDay(next, todayKey())
         return next
       })
@@ -221,7 +242,7 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
               <input
                 type="number" inputMode="numeric" min="0" step="1"
                 value={day.steps || ''}
-                onChange={(e) => update({ steps: Math.max(0, num(e.target.value)) })}
+                onChange={(e) => setSteps(Math.max(0, num(e.target.value)))}
                 placeholder="e.g. 4500"
               />
               {stepSensorAvailable() && (
@@ -247,8 +268,8 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
 
         <div className="tracker">
           <div className="t-label">Calories in / burned</div>
-          <div className="t-value">{day.calsIn}<small> / {day.calsOut} kcal</small></div>
-          <p className="dim small" style={{ marginTop: 6 }}>Auto-tracked from 🍽️ Diet and 💪 Workout.</p>
+          <div className="t-value">{day.calsIn}<small> / {totalBurn(day, profile.weight)} kcal</small></div>
+          <p className="dim small" style={{ marginTop: 6 }}>Auto-tracked from 🍽️ Diet, 💪 Workout and 👣 steps.</p>
         </div>
       </div>
 

@@ -111,7 +111,7 @@ export default function App() {
       {tab === 'home' && <Dashboard profile={profile} onOpenProfile={openProfile} onOpenCycle={openCycle} onOpenRoutine={openRoutine} />}
       {tab === 'workout' && <Workout profile={profile} />}
       {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
-      {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} />}
+      {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} onProfileUpdate={setProfile} />}
       {tab === 'style' && <Style profile={profile} />}
       {tab === 'stats' && <Analysis profile={profile} />}
       {tab === 'inv' && <Inventory profile={profile} />}

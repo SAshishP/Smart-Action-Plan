@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { buildSkinRoutine, buildHairRoutine, shelfMatch, SKIN_TYPES, HAIR_TYPES, POROSITY } from '../lib/care.js'
+import { runFaceHairAnalysis } from '../lib/face-hair.js'
 import { getWeather } from '../lib/weather.js'
 import { searchBeautyProducts } from '../lib/foods.js'
 import { haveCareNames, addCustomPatch } from '../lib/inventory.js'
@@ -40,7 +41,58 @@ function StepRow({ s, shelf, location, dandruff }) {
   )
 }
 
-function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
+const TONE_COLOR = { good: '#7ee2b8', ok: '#ffd166', bad: '#ff6b81', neutral: 'var(--accent)' }
+
+function AttrRow({ it }) {
+  const color = TONE_COLOR[it.tone] || 'var(--accent)'
+  return (
+    <div className="attr">
+      <div className="attr-head">
+        <span className="attr-label">{it.label}</span>
+        <span className="attr-val" style={{ color }}>{it.value}</span>
+      </div>
+      {it.type !== 'text' && (
+        <div className="progressbar attr-bar"><i style={{ width: Math.round(it.score) + '%', background: color }} /></div>
+      )}
+      {it.note && it.note !== '—' && <p className="dim small attr-note">{it.note}</p>}
+    </div>
+  )
+}
+
+function DetailCard({ icon, title, data, hasPhoto, busy, onRun }) {
+  const t = title.toLowerCase()
+  return (
+    <section className="card">
+      <h2>{icon} {title} analysis <span className="dim small">from your photo</span></h2>
+      {!data && !busy && (
+        <p className="dim small" style={{ marginBottom: hasPhoto ? 4 : 0 }}>
+          {hasPhoto
+            ? `A detailed, honest breakdown of your ${t} — tap below to run it.`
+            : `Add a ${t} photo below and it’s analyzed automatically, then a full breakdown appears here.`}
+        </p>
+      )}
+      {busy && <p className="dim small">✨ Analyzing your {t}…</p>}
+      {data && (
+        <>
+          <div className="attr-list">
+            {data.items.map((it) => <AttrRow key={it.key} it={it} />)}
+          </div>
+          {data.summary && <div className="analysis small" style={{ marginTop: 10 }}>{data.summary}</div>}
+          <p className="dim" style={{ fontSize: 11, marginTop: 8 }}>
+            Analyzed {data.at} · AI estimate from your photo, not a medical diagnosis.
+          </p>
+        </>
+      )}
+      {hasPhoto && (
+        <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={onRun} disabled={busy}>
+          {busy ? 'Analyzing…' : data ? `🔁 Re-analyze ${t}` : `✨ Analyze my ${t}`}
+        </button>
+      )}
+    </section>
+  )
+}
+
+function ProgressBlock({ p, setP, onProfileUpdate, title, initialKey, listKey, slot, prompt }) {
   const [busy, setBusy] = useState(false)
   const [analysis, setAnalysis] = useState('')
   const [msg, setMsg] = useState('')
@@ -59,6 +111,7 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
       const np = { ...getProfile(), [listKey]: next }
       saveProfile(np)
       setP(np)
+      onProfileUpdate?.(np)
       uploadProgressPhoto(dataUrl, slot, entry.date)
       setMsg('')
       doAnalyze(dataUrl)   // auto-analysis on every new photo
@@ -116,13 +169,16 @@ function ProgressBlock({ p, setP, title, initialKey, listKey, slot, prompt }) {
   )
 }
 
-export default function Care({ profile, onOpenInventory }) {
+export default function Care({ profile, onOpenInventory, onProfileUpdate }) {
   const [p, setP] = useState(profile)
   const [weather, setWeather] = useState(null)
   const [wxLoading, setWxLoading] = useState(true)
   const [shelfQuery, setShelfQuery] = useState('')
   const [results, setResults] = useState(null)
   const [searching, setSearching] = useState(false)
+  const [detBusy, setDetBusy] = useState(false)
+  const [detMsg, setDetMsg] = useState('')
+  const ranDetail = useRef(false)
   const [setup, setSetup] = useState({
     skinType: profile.skinType || '',
     hairType: profile.hairType || '',
@@ -143,20 +199,51 @@ export default function Care({ profile, onOpenInventory }) {
     return () => { alive = false }
   }, [p.location])
 
-  function saveSetup() {
-    if (!setup.skinType || !setup.hairType) return
-    const np = { ...getProfile(), ...setup }
+  function persist(np) {
     saveProfile(np)
     setP(np)
+    onProfileUpdate?.(np)
+  }
+
+  function saveSetup() {
+    if (!setup.skinType || !setup.hairType) return
+    persist({ ...getProfile(), ...setup })
   }
 
   const addShelf = (name) => {
     const n = String(name).trim()
     if (!n) return
-    const np = { ...getProfile(), ...addCustomPatch(getProfile(), n, 'Skincare', 'have') }
-    saveProfile(np)
-    setP(np)
+    persist({ ...getProfile(), ...addCustomPatch(getProfile(), n, 'Skincare', 'have') })
   }
+
+  // Latest available photo for each — weekly photo wins over the onboarding one.
+  const faceUrl = p.facePhotos?.[p.facePhotos.length - 1]?.dataUrl || p.photos?.face_front || null
+  const hairUrl = p.hairPhotos?.[p.hairPhotos.length - 1]?.dataUrl || p.photos?.hair_front || p.photos?.hair_top || null
+
+  async function runDetail() {
+    if (!faceUrl && !hairUrl) { setDetMsg('Add a face or hair photo first.'); return }
+    setDetBusy(true); setDetMsg('')
+    try {
+      const { faceAnalysis, hairAnalysis } = await runFaceHairAnalysis(p, faceUrl, hairUrl)
+      const np = { ...getProfile() }
+      if (faceUrl) np.faceAnalysis = faceAnalysis
+      if (hairUrl) np.hairAnalysis = hairAnalysis
+      persist(np)
+    } catch (e) {
+      setDetMsg('⚠️ ' + e.message)
+    } finally {
+      setDetBusy(false)
+    }
+  }
+
+  // Auto-run once when we have a photo but no breakdown yet.
+  useEffect(() => {
+    if (ranDetail.current || needsSetup) return
+    if ((faceUrl && !p.faceAnalysis) || (hairUrl && !p.hairAnalysis)) {
+      ranDetail.current = true
+      runDetail()
+    }
+  }, [faceUrl, hairUrl, needsSetup]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function runSearch() {
     const q = shelfQuery.trim()
@@ -228,6 +315,10 @@ export default function Care({ profile, onOpenInventory }) {
               Today's routine is adjusted to this weather automatically.
             </p>
           )}
+
+          <DetailCard icon="🙂" title="Face & skin" data={p.faceAnalysis} hasPhoto={!!faceUrl} busy={detBusy} onRun={runDetail} />
+          <DetailCard icon="💇" title="Hair & scalp" data={p.hairAnalysis} hasPhoto={!!hairUrl} busy={detBusy} onRun={runDetail} />
+          {detMsg && <p className="dim small" style={{ margin: '-6px 0 14px' }}>{detMsg}</p>}
 
           <section className="card">
             <h2>⚠️ Precautions</h2>
@@ -313,12 +404,12 @@ export default function Care({ profile, onOpenInventory }) {
           </section>
 
           <ProgressBlock
-            p={p} setP={setP} title="Face & skin" initialKey="face_front"
+            p={p} setP={setP} onProfileUpdate={onProfileUpdate} title="Face & skin" initialKey="face_front"
             listKey="facePhotos" slot="face_front"
             prompt="Compare skin texture, tone evenness, breakouts and dark spots kindly and honestly, then tell me what to adjust in my routine (I follow the routine in my profile context)."
           />
           <ProgressBlock
-            p={p} setP={setP} title="Hair" initialKey="hair_front"
+            p={p} setP={setP} onProfileUpdate={onProfileUpdate} title="Hair" initialKey="hair_front"
             listKey="hairPhotos" slot="hair_front"
             prompt="Compare hair volume, shine, frizz, scalp visibility and hairline kindly and honestly, then tell me what to adjust in my hair routine."
           />

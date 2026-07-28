@@ -412,3 +412,11 @@ button.mini {
 .cal-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
 .cal-summary > div { display: flex; flex-direction: column; gap: 2px; }
 .cs-num { font-family: var(--font-num); font-size: 22px; font-weight: 800; }
+
+/* ---- face/hair analysis meters ---- */
+.attr-list { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+.attr-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.attr-label { font-size: 13.5px; font-weight: 600; }
+.attr-val { font-size: 12.5px; font-weight: 700; text-transform: capitalize; white-space: nowrap; }
+.attr-bar { height: 6px; margin: 6px 0 0; }
+.attr-note { margin-top: 4px; line-height: 1.35; }

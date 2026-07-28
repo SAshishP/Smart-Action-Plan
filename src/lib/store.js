@@ -48,7 +48,9 @@ const EMPTY_DAY = {
   steps: 0,
   sleepHours: '',
   calsIn: 0,
-  calsOut: 0,
+  calsOut: 0,   // total burned (workouts + steps) — kept in sync for stats.
+                // workoutCals (workout-only burn) is written on demand and left
+                // absent here so steps.js workoutBurn() can back-fill old days.
   todos: [],
   planDone: {},
   meals: [],        // [{ id, name, kcal }]

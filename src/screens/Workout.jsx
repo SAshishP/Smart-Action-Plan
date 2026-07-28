@@ -4,13 +4,17 @@ import { buildWorkout, withAnalysisFocus, generateWeek, setsRepsFor, estimateCal
 import { PRE_WORKOUT, POST_WORKOUT, filterSafe } from '../lib/recipes.js'
 import { POSTURE_FIXES, matchKeys } from '../lib/corrections.js'
 import { getDay, saveDay, todayKey, getProfile, saveProfile } from '../lib/store.js'
+import { stepCalories, workoutBurn, totalBurn } from '../lib/steps.js'
 import { askAI, dataUrlToImage } from '../lib/ai.js'
 import { compressImage } from '../lib/img.js'
 import { uploadProgressPhoto } from '../lib/cloud.js'
 
+const BURN_GOAL = 500 // gentle daily active-burn reference for the meter
+
 export default function Workout({ profile }) {
   const [equip, setEquip] = useState(profile.equipPref || 'home')
   const [openId, setOpenId] = useState(null)
+  const [day, setDay] = useState(() => getDay())
   const [doneIds, setDoneIds] = useState(() => getDay().workoutDone || [])
   const [picked, setPicked] = useState(null)
   const [finishedMsg, setFinishedMsg] = useState('')
@@ -52,8 +56,11 @@ export default function Workout({ profile }) {
   function finishWorkout() {
     const kcal = estimateCalories(plan.exercises, doneIds, profile.weight)
     if (!kcal) { setFinishedMsg('Check off at least one exercise first 🙂'); return }
-    const day = getDay()
-    saveDay({ ...day, calsOut: (Number(day.calsOut) || 0) + kcal, workoutDone: [] }, todayKey())
+    const d = getDay()
+    const wc = workoutBurn(d) + kcal
+    const next = { ...d, workoutCals: wc, calsOut: wc + stepCalories(d.steps, profile.weight), workoutDone: [] }
+    saveDay(next, todayKey())
+    setDay(next)
     setDoneIds([])
     setFinishedMsg(`Logged ✅ ~${kcal} kcal added to today's burn (see Home).`)
   }
@@ -107,6 +114,13 @@ export default function Workout({ profile }) {
 
   const latestThumb = progress[progress.length - 1]
 
+  const burn = {
+    total: totalBurn(day, profile.weight),
+    workout: workoutBurn(day),
+    steps: stepCalories(day.steps, profile.weight),
+  }
+  const pending = estimateCalories(plan.exercises, doneIds, profile.weight)
+
   return (
     <div className="screen with-tabbar">
       <h1>Workout</h1>
@@ -121,6 +135,22 @@ export default function Workout({ profile }) {
           Day {plan.cycle.day} of your cycle · {plan.cycle.note}
         </div>
       )}
+
+      <section className="card">
+        <h2>🔥 Calories burned today <span className="dim small">workout + steps</span></h2>
+        <div className="cal-summary" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div><span className="cs-num">{burn.total}</span><span className="dim small">total kcal</span></div>
+          <div><span className="cs-num">{burn.workout}</span><span className="dim small">🏋️ workout</span></div>
+          <div><span className="cs-num">{burn.steps}</span><span className="dim small">👣 {day.steps.toLocaleString()} steps</span></div>
+        </div>
+        <div className="progressbar" style={{ margin: '10px 0 4px' }}>
+          <i style={{ width: Math.min(100, Math.round((burn.total / BURN_GOAL) * 100)) + '%' }} />
+        </div>
+        <p className="dim small">
+          {pending > 0 ? `Finishing your checked exercises adds ~${pending} kcal. ` : ''}
+          Steps counted on 🏠 Home are converted to calories and added here automatically.
+        </p>
+      </section>
 
       <div className="seg">
         {[['home', '🏠 Home'], ['db', '🏋️ Dumbbells'], ['gym', '💪 Gym']].map(([v, label]) => (

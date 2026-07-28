@@ -167,11 +167,11 @@ export default function Diet({ profile, onOpenInventory }) {
       </div>
 
       <section className="card">
-        <h2>Today's calories</h2>
-        <div className="cal-summary">
+        <h2>Today's calories <span className="dim small">intake</span></h2>
+        <div className="cal-summary" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
           <div><span className="cs-num">{day.calsIn || 0}</span><span className="dim small">eaten</span></div>
           <div><span className="cs-num">{Math.max(0, target - (Number(day.calsIn) || 0))}</span><span className="dim small">left</span></div>
-          <div><span className="cs-num">{day.calsOut || 0}</span><span className="dim small">burned</span></div>
+          <div><span className="cs-num">{target}</span><span className="dim small">target</span></div>
         </div>
         <div className="progressbar" style={{ margin: '10px 0 4px' }}>
           <i style={{ width: Math.min(100, Math.round(((Number(day.calsIn) || 0) / target) * 100)) + '%',
