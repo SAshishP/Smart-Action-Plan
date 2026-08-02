@@ -22,6 +22,7 @@ export async function runInitialAnalysis(profile) {
   if (!picks.length) throw new Error('No initial photos to analyze.')
   const reply = await askAI({
     profile,
+    source: 'onboarding-analysis',
     images: picks.map(dataUrlToImage),
     messages: [{ role: 'user', text: PROMPT }],
   })

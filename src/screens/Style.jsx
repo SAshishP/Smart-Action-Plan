@@ -45,7 +45,7 @@ export default function Style({ profile }) {
       if (body) images.push(dataUrlToImage(body))
       if (face) images.push(dataUrlToImage(face))
       const reply = await askAI({
-        profile: p, images,
+        profile: p, images, source: 'style-bodyshape',
         messages: [{
           role: 'user',
           text: `${body ? 'Photo 1 is my full body (front).' : ''} ${face ? 'The last photo is my face (front).' : ''} Classify for styling purposes. Reply with exactly these lines and nothing else:
@@ -84,7 +84,7 @@ UNDERTONE: one of ${UNDERTONES.join(' / ')}`,
       let type = 'top', name = 'Clothing item', color = ''
       try {
         const reply = await askAI({
-          profile: p, images: [dataUrlToImage(dataUrl)],
+          profile: p, images: [dataUrlToImage(dataUrl)], source: 'style-wardrobe',
           messages: [{ role: 'user', text: 'Identify this clothing item for a wardrobe app. Reply exactly one line: ITEM: <short name> | TYPE: <top/bottom/dress/layer/footwear/accessory/ethnic> | COLOR: <main color>' }],
         })
         name = parseTag(reply, 'ITEM') || name
@@ -108,7 +108,7 @@ UNDERTONE: one of ${UNDERTONES.join(' / ')}`,
     try {
       const others = wardrobe.filter((w) => w.id !== item.id).map((w) => `${w.name} (${w.type}${w.color ? ', ' + w.color : ''})`).join('; ') || 'nothing else yet'
       const reply = await askAI({
-        profile: p, images: [dataUrlToImage(item.dataUrl)],
+        profile: p, images: [dataUrlToImage(item.dataUrl)], source: 'style-outfit',
         messages: [{
           role: 'user',
           text: `This is my "${item.name}". Build a complete ${occasion} outfit around it for my body shape (${p.bodyShape || 'unknown'}) and ${p.undertone || 'unknown'} undertone. My wardrobe also has: ${others}. Prefer what I own; only then suggest 1–2 things to buy. Keep it short.`,

@@ -50,6 +50,7 @@ export default function Chat({ profile }) {
     try {
       const reply = await askAI({
         profile,
+        source: 'chat',
         messages: history.slice(-12).map((m) => ({ role: m.role, text: m.text })),
         images: userMsg.img ? [dataUrlToImage(userMsg.img)] : undefined,
       })

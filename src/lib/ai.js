@@ -17,7 +17,8 @@ export function profileSummary(p) {
 
 // messages: [{role:'user'|'model', text}]
 // images (optional): [{ mime, data(base64, no prefix) }]
-export async function askAI({ messages, profile, images }) {
+// source (optional): which screen asked — recorded in the ai_messages log
+export async function askAI({ messages, profile, images, source = 'chat' }) {
   if (!supabase) throw new Error('Cloud isn’t set up yet.')
   const { data } = await supabase.auth.getSession()
   const session = data?.session
@@ -33,6 +34,7 @@ export async function askAI({ messages, profile, images }) {
       },
       body: JSON.stringify({
         messages,
+        source,
         profile: profileSummary(profile),
         images: images && images.length ? images : undefined,
       }),

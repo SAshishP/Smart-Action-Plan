@@ -97,6 +97,7 @@ export default function Workout({ profile }) {
       const reply = await askAI({
         profile,
         images,
+        source: 'workout',
         messages: [{
           role: 'user',
           text: initial

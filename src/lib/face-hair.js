@@ -124,7 +124,7 @@ export async function runFaceHairAnalysis(profile, faceUrl, hairUrl) {
   const intro = labels.length === 2
     ? 'Photo 1 is my face; photo 2 is my hair/scalp. '
     : `This photo is my ${labels[0]}. `
-  const reply = await askAI({ profile, images, messages: [{ role: 'user', text: intro + PROMPT }] })
+  const reply = await askAI({ profile, images, source: 'face-hair', messages: [{ role: 'user', text: intro + PROMPT }] })
   const at = new Date().toISOString().slice(0, 10)
   return {
     faceAnalysis: { at, items: parseBlock(reply, FACE_ATTRS), summary: summaryOf(reply, 'FACE_SUMMARY') },

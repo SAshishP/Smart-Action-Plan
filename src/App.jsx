@@ -17,7 +17,7 @@ import Chat from './screens/Chat.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { supabase, cloudReady } from './lib/supabase.js'
-import { pullProfile, uploadInitialPhotos, signOutEverywhere } from './lib/cloud.js'
+import { pullProfile, uploadInitialPhotos, signOutEverywhere, backfillLocalData, trackEvent } from './lib/cloud.js'
 
 export default function App() {
   const [splashDone, setSplashDone] = useState(false)
@@ -69,6 +69,22 @@ export default function App() {
       }
     })
   }, [session])
+
+  // One-time recovery of data that only ever lived on this device.
+  // Keyed on the user id, not the session object, so a token refresh
+  // doesn't re-trigger it.
+  const userId = session?.user?.id || null
+  useEffect(() => {
+    if (!cloudReady || !userId) return
+    backfillLocalData().catch(() => {})
+  }, [userId])
+
+  // Activity trail: which screen, when
+  const hasProfile = Boolean(profile)
+  useEffect(() => {
+    if (!cloudReady || !userId || !hasProfile) return
+    trackEvent('screen_view', { screen: tab }).catch(() => {})
+  }, [tab, userId, hasProfile])
 
   useEffect(() => {
     const g = profile?.gender

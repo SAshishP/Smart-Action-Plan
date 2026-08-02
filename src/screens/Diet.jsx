@@ -101,6 +101,7 @@ export default function Diet({ profile, onOpenInventory }) {
     try {
       const reply = await askAI({
         profile: p,
+        source: 'diet-text',
         messages: [{
           role: 'user',
           text: `I ate: "${name}". Estimate the calories for that portion (use typical Indian/home portions if units aren't given). Two short lines max, then exactly one final line: TOTAL_KCAL: <number>`,
@@ -143,6 +144,7 @@ export default function Diet({ profile, onOpenInventory }) {
       const reply = await askAI({
         profile,
         images: [dataUrlToImage(dataUrl)],
+        source: 'diet-photo',
         messages: [{
           role: 'user',
           text: 'This is my meal. Identify the dish and portion size, estimate total calories, and note protein roughly. Keep it short. End with exactly one line: TOTAL_KCAL: <number>',

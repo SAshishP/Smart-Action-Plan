@@ -79,6 +79,7 @@ export default function Inventory({ profile, onBack }) {
     try {
       const reply = await askAI({
         profile: p,
+        source: 'inventory',
         messages: [{
           role: 'user',
           text: `My shopping list: ${needList.join(', ')}. Real stores near me right now: ${storesTxt}. In under 120 words: recommend where to buy what — group items per best store, factor distance, typical price level and quality of these store types, and say which items are usually cheaper online. Do not invent exact prices.`,

@@ -72,6 +72,7 @@ export default function Analysis({ profile }) {
         `Total burned ${s.totalBurn} kcal. Calorie target ${calTarget}. My why: "${p.why || 'not written yet'}".`
       const reply = await askAI({
         profile: p,
+        source: 'stats-review',
         messages: [{
           role: 'user',
           text: `Here is my last-30-days summary from my tracking app: ${summary} Give me an honest, encouraging monthly review: what's working, the one thing to fix first, and a concrete focus for next week. Short paragraphs.`,

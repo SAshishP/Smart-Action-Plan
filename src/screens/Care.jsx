@@ -130,7 +130,7 @@ function ProgressBlock({ p, setP, onProfileUpdate, title, initialKey, listKey, s
       if (initial) images.push(dataUrlToImage(initial))
       images.push(dataUrlToImage(latestUrl))
       const reply = await askAI({
-        profile: p, images,
+        profile: p, images, source: 'care',
         messages: [{ role: 'user', text: initial ? `Photo 1 is my starting ${title.toLowerCase()} photo; photo 2 is this week. ${prompt}` : `This is my current ${title.toLowerCase()} photo. ${prompt}` }],
       })
       setAnalysis(reply)
