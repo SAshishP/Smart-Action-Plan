@@ -102,6 +102,7 @@ export default function Onboarding({ onDone }) {
               plans and progress analysis, it stores your daily logs. <strong>The app
               owner can see only logs</strong>.
               <strong>No-One can ever see your data</strong>.
+              <strong>Your Phone is your own DataBase</strong>.
             </p>
             <p style={{ marginTop: 8 }}>
               SAP gives lifestyle suggestions only. It is <strong>not medical
