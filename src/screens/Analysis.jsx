@@ -8,8 +8,9 @@ import { askAI } from '../lib/ai.js'
 import { getDay, saveDay, todayKey } from '../lib/store.js'
 import { computeGame, earnedBadges } from '../lib/game.js'
 import { goalTimeline, milestones } from '../lib/goals.js'
+import { bodyMetrics } from '../lib/body.js'
 
-export default function Analysis({ profile }) {
+export default function Analysis({ profile, onOpenBody }) {
   const [p, setP] = useState(profile)
   const [range, setRange] = useState(7)
   const [history, setHistory] = useState(null) // last 30, oldest first
@@ -129,6 +130,32 @@ export default function Analysis({ profile }) {
         </div>
       </section>
 
+      {(() => {
+        const mx = bodyMetrics(p)
+        if (!mx.bmi.ready && !mx.bodyFat.ready) return null
+        return (
+          <section className="card">
+            <h2>📐 Body composition</h2>
+            <div className="chips">
+              {mx.bmi.ready && <span className="chip">⚖️ BMI {mx.bmi.value} · {mx.bmi.category}</span>}
+              {mx.bodyFat.ready && <span className="chip">🔬 {mx.bodyFat.value}% fat · {mx.bodyFat.category}</span>}
+              {mx.bodyFat.ready && mx.bodyFat.leanMassKg && <span className="chip">💪 {mx.bodyFat.leanMassKg} kg lean</span>}
+              {mx.ratios.map((r) => <span key={r.key} className="chip">{r.label} {r.value}</span>)}
+            </div>
+            {mx.completeness.missing.length > 0 && (
+              <p className="dim small" style={{ marginTop: 10 }}>
+                {mx.completeness.pct}% complete — add {mx.completeness.missing.map((x) => x.label.toLowerCase()).join(', ')} for the accurate version.
+              </p>
+            )}
+            {onOpenBody && (
+              <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={onOpenBody}>
+                Open my full Body report ›
+              </button>
+            )}
+          </section>
+        )
+      })()}
+
       <section className="card">
         <h2>⏳ Timeline to my goal</h2>
         {(() => {
@@ -156,8 +183,10 @@ export default function Analysis({ profile }) {
                 <span className="chip">🎯 target {tl.target} kg</span>
                 <span className="chip">📈 {tl.ratePerWeek} kg/week</span>
                 <span className="chip">🗓 ~{tl.etaDate}</span>
+                {tl.days ? <span className="chip">⏱ {tl.days} days</span> : null}
               </div>
               <p className="dim small" style={{ marginTop: 8 }}>{tl.note}</p>
+              {tl.conditionNote && <p className="small" style={{ color: 'var(--accent)', marginTop: 6 }}>ℹ️ {tl.conditionNote}</p>}
               {tl.warn && <p className="small no" style={{ marginTop: 6 }}>⚠️ {tl.warn}</p>}
               {milestones(tl).length > 0 && (
                 <>

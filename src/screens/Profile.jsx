@@ -3,6 +3,8 @@ import { getProfile, saveProfile, ageFromDob } from '../lib/store.js'
 import { compressImage } from '../lib/img.js'
 import { uploadProgressPhoto } from '../lib/cloud.js'
 import { runInitialAnalysis } from '../lib/analysis.js'
+import { pickableConditions } from '../lib/conditions.js'
+import { withMeasurementSnapshot } from '../lib/body.js'
 
 const PHOTO_SLOTS = [
   ['body_front', 'Body F'], ['body_left', 'Body L'], ['body_right', 'Body R'], ['body_back', 'Body B'],
@@ -29,7 +31,17 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
 
   function save() {
     const { photos, analysis, ...fields } = f
-    apply(fields, 'Profile saved ✓ — plans update instantly.')
+    // Measurements saved here count towards the trend in 📐 Body exactly like
+    // ones saved there — same helper, so the two can never drift apart.
+    apply(withMeasurementSnapshot(getProfile(), fields), 'Profile saved ✓ — plans update instantly.')
+  }
+
+  function toggleCondition(key) {
+    const cur = new Set(getProfile().conditions || [])
+    cur.has(key) ? cur.delete(key) : cur.add(key)
+    const next = [...cur]
+    setF((o) => ({ ...o, conditions: next }))
+    apply({ conditions: next }, 'Conditions updated ✓ — targets, meals and workouts just adapted.')
   }
 
   async function replacePhoto(slot, e) {
@@ -85,6 +97,8 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
             {a.posture?.length > 0 && <p className="small" style={{ marginTop: 8 }}><strong>Posture:</strong> {a.posture.join(', ')} <span className="dim">(fixes in 💪 Fit)</span></p>}
             {a.fatAreas?.length > 0 && <p className="small" style={{ marginTop: 4 }}><strong>Focus areas:</strong> {a.fatAreas.join(', ')} <span className="dim">(built into your plans)</span></p>}
             {a.skinConcerns?.length > 0 && <p className="small" style={{ marginTop: 4 }}><strong>Skin:</strong> {a.skinConcerns.join(', ')} <span className="dim">(fixes in 🧴 Care)</span></p>}
+            {a.concerns?.length > 0 && <p className="small" style={{ marginTop: 4 }}><strong>Also noted:</strong> {a.concerns.join(', ')} <span className="dim">(full protocols in 📐 Body)</span></p>}
+            {a.stretchMarks && <p className="small" style={{ marginTop: 4 }}><strong>Stretch marks:</strong> {a.stretchMarks.stage}{a.stretchMarks.areas.length ? ` — ${a.stretchMarks.areas.join(', ')}` : ''}</p>}
             {a.hairNotes && <p className="small" style={{ marginTop: 4 }}><strong>Hair:</strong> {a.hairNotes}</p>}
             {a.summary && <p className="dim small" style={{ marginTop: 8 }}>{a.summary}</p>}
             <p className="dim" style={{ fontSize: 11, marginTop: 6 }}>Analyzed {a.at} · AI estimate from photos, not a medical assessment.</p>
@@ -95,6 +109,30 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
         <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={rerunAnalysis} disabled={aiBusy}>
           {aiBusy ? 'Analyzing your photos…' : a ? '🔁 Re-run photo analysis' : '✨ Analyze my photos'}
         </button>
+      </section>
+
+      <section className="card">
+        <h2>🩺 Health conditions</h2>
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          Tap any that apply. These change your calorie and protein targets, filter unsafe
+          exercises out of your plans, and keep your goal timeline honest.
+        </p>
+        <div>
+          {pickableConditions(p).map((c) => {
+            const on = (p.conditions || []).includes(c.key)
+            return (
+              <button key={c.key} type="button"
+                className={'chip chip-add' + (on ? ' chip-on' : '')}
+                style={on ? undefined : { background: 'var(--card)', color: 'var(--text-dim)', borderColor: 'var(--line)' }}
+                onClick={() => toggleCondition(c.key)}>
+                {on ? '✓' : '＋'} {c.icon} {c.name}
+              </button>
+            )
+          })}
+        </div>
+        <p className="dim" style={{ fontSize: 11.5, marginTop: 10 }}>
+          Full guidance for each one — food, training, what to expect, when to see a doctor — is in 📐 Body.
+        </p>
       </section>
 
       <section className="card">
@@ -128,12 +166,36 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
         </div>
         <label className="field"><span>Target weight (kg) — powers your goal timeline</span>
           <input type="number" inputMode="decimal" step="0.5" value={f.targetWeight || ''} onChange={set('targetWeight')} /></label>
+        <p className="dim small" style={{ margin: '4px 0 8px' }}>
+          Measurements (cm) — neck + waist{p.gender === 'female' ? ' + hips' : ''} unlock the accurate
+          body fat % in 📐 Body.
+        </p>
+        <div className="row">
+          <label className="field"><span>Neck</span>
+            <input type="number" inputMode="decimal" value={f.neck || ''} onChange={set('neck')} /></label>
+          <label className="field"><span>Chest</span>
+            <input type="number" inputMode="decimal" value={f.chest || ''} onChange={set('chest')} /></label>
+        </div>
+        <div className="row">
+          <label className="field"><span>Waist</span>
+            <input type="number" inputMode="decimal" value={f.waist || ''} onChange={set('waist')} /></label>
+          <label className="field"><span>Hips</span>
+            <input type="number" inputMode="decimal" value={f.hips || ''} onChange={set('hips')} /></label>
+        </div>
+        <div className="row">
+          <label className="field"><span>Thigh</span>
+            <input type="number" inputMode="decimal" value={f.thigh || ''} onChange={set('thigh')} /></label>
+          <label className="field"><span>Arm</span>
+            <input type="number" inputMode="decimal" value={f.arm || ''} onChange={set('arm')} /></label>
+        </div>
         <label className="field"><span>Goals</span><textarea rows="2" value={f.goals || ''} onChange={set('goals')} /></label>
         <label className="field"><span>Diet type</span>
           <select value={f.dietType || ''} onChange={set('dietType')}>
             {['', 'Vegetarian', 'Non-vegetarian', 'Eggetarian', 'Vegan', 'Keto', 'No specific diet'].map((d) => <option key={d} value={d}>{d || 'Select…'}</option>)}
           </select></label>
         <label className="field"><span>Allergies</span><textarea rows="2" value={f.allergies || ''} onChange={set('allergies')} /></label>
+        <label className="field"><span>Other health conditions, in your own words</span>
+          <textarea rows="2" value={f.medicalConditions || ''} onChange={set('medicalConditions')} /></label>
         <label className="field"><span>Medications</span><textarea rows="2" value={f.medications || ''} onChange={set('medications')} /></label>
         <label className="field"><span>Foods to avoid</span><textarea rows="2" value={f.foodsToAvoid || ''} onChange={set('foodsToAvoid')} /></label>
         <label className="field"><span>Activity level</span>

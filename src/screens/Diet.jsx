@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { calorieTarget, proteinTarget } from '../lib/nutrition.js'
+import { calorieTarget, proteinTarget, targetExplained } from '../lib/nutrition.js'
+import { dietGuidance } from '../lib/conditions.js'
 import { planMeals, pantryMatch, recipeConcerns } from '../lib/recipes.js'
 import { searchWorldFoods } from '../lib/foods.js'
 import { haveFoodNames, addCustomPatch, setStatusPatch, allItems, statusOf } from '../lib/inventory.js'
@@ -11,7 +12,7 @@ import { compressImage } from '../lib/img.js'
 
 const MEAL_LABEL = { breakfast: '🌅 Breakfast', lunch: '☀️ Lunch', snack: '🥜 Snack', dinner: '🌙 Dinner' }
 
-export default function Diet({ profile, onOpenInventory }) {
+export default function Diet({ profile, onOpenInventory, onOpenBody }) {
   const [p, setP] = useState(profile)
   const pantry = haveFoodNames(p)
   const [swaps, setSwaps] = useState({})
@@ -36,6 +37,7 @@ export default function Diet({ profile, onOpenInventory }) {
   )
   const target = calorieTarget(p)
   const protein = proteinTarget(p)
+  const guide = useMemo(() => dietGuidance(p), [p])
   const planKcal = Object.values(plan).reduce((s, r) => s + r.kcal, 0)
 
   function apply(patch) {
@@ -164,9 +166,13 @@ export default function Diet({ profile, onOpenInventory }) {
       <h1>Diet</h1>
       <div className="chips">
         <span className="chip">🎯 {target} kcal/day</span>
-        <span className="chip">🥚 {protein} g protein</span>
+        {protein != null && <span className="chip">🥚 {protein} g protein</span>}
         {p.dietType && <span className="chip">🍽️ {p.dietType}</span>}
+        {guide.conditions.map((c) => <span key={c.key} className="chip">{c.icon} {c.name}</span>)}
       </div>
+      {targetExplained(p).map((w, i) => (
+        <p key={i} className="small" style={{ color: 'var(--accent)', marginBottom: 6 }}>ℹ️ {w}</p>
+      ))}
 
       <section className="card">
         <h2>Today's calories <span className="dim small">intake</span></h2>
@@ -187,6 +193,38 @@ export default function Diet({ profile, onOpenInventory }) {
             : 'On track. Keep logging.'}
         </p>
       </section>
+
+      {guide.conditions.length > 0 && (
+        <section className="card">
+          <h2>🩺 Eating for your conditions</h2>
+          <p className="dim small" style={{ marginBottom: 10 }}>
+            Merged across {guide.conditions.map((c) => c.name).join(', ')}. Each line names the
+            condition it came from.
+          </p>
+          <p className="small" style={{ marginBottom: 6 }}><strong>Eat more of</strong></p>
+          {guide.eat.slice(0, 8).map((r, i) => (
+            <p key={i} className="small ok" style={{ marginBottom: 5 }}>✓ {r.text} <span className="dim">({r.from})</span></p>
+          ))}
+          {guide.limit.length > 0 && (
+            <>
+              <p className="small" style={{ margin: '12px 0 6px' }}><strong>Limit</strong></p>
+              {guide.limit.slice(0, 8).map((r, i) => (
+                <p key={i} className="small no" style={{ marginBottom: 5 }}>✗ {r.text} <span className="dim">({r.from})</span></p>
+              ))}
+            </>
+          )}
+          {guide.carbNotes.map((n, i) => <p key={i} className="dim small" style={{ marginTop: 8 }}>{n}</p>)}
+          {guide.proteinNote && <p className="small" style={{ color: 'var(--accent)', marginTop: 8 }}>ℹ️ {guide.proteinNote}</p>}
+          {onOpenBody && (
+            <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={onOpenBody}>
+              Full guidance in 📐 Body ›
+            </button>
+          )}
+          <p className="dim" style={{ fontSize: 11.5, marginTop: 8 }}>
+            General nutrition information, not medical advice — your doctor or dietitian confirms anything here.
+          </p>
+        </section>
+      )}
 
       {medicationFlags(p.medications).length > 0 && (
         <section className="card">
@@ -218,6 +256,12 @@ export default function Diet({ profile, onOpenInventory }) {
         {(String(p.allergies || '').trim() || String(p.foodsToAvoid || '').trim()) && (
           <p className="dim small" style={{ marginBottom: 8 }}>
             Filtered for your allergies & avoid-list automatically.
+          </p>
+        )}
+        {guide.conditions.length > 0 && (
+          <p className="dim small" style={{ marginBottom: 8 }}>
+            🩺 Ordered for {guide.conditions.map((c) => c.name).join(' + ')} — lower-GI, higher-protein
+            options surface first. Nothing is hidden from you; you can still swap to anything.
           </p>
         )}
         {p.analysis?.fatAreas?.length > 0 && (

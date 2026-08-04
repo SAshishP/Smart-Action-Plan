@@ -1,4 +1,5 @@
 import { buildAvoidance, checkText, recipeText, medicationCautionTerms } from './allergens.js'
+import { activeConditions } from './conditions.js'
 
 // Recipe library + daily meal planner.
 // diets: veg, vegan, egg, nonveg, keto  ·  allergens: dairy, egg, nuts, peanut,
@@ -157,6 +158,46 @@ export const POST_WORKOUT = [
 ]
 
 
+// ---- condition-aware preference ----------------------------------------
+//
+// These are nudges, not bans. A logged condition should quietly reorder which
+// safe recipe surfaces first — someone with PCOS gets the chickpea salad ahead
+// of the noodles — without ever hiding food or lecturing them on the plan.
+// Hard rules (coeliac, allergies) are handled by the avoidance filter instead.
+
+const HIGH_GI = ['rice', 'noodle', 'bread', 'toast', 'potato', 'honey', 'maida']
+const LOW_GI = ['oats', 'dal', 'chickpea', 'rajma', 'bean', 'sprout', 'millet', 'quinoa']
+const HIGH_SODIUM = ['soy sauce', 'sauce', 'pickle', 'papad']
+const HIGH_PURINE = ['tuna', 'sardine', 'anchovy', 'liver', 'prawn', 'shrimp']
+const DAIRY = ['milk', 'paneer', 'cheese', 'cream', 'butter', 'ghee', 'curd', 'yogurt']
+const FRIED = ['fried', 'deep fry', 'puri', 'samosa', 'pakora']
+
+const hits = (text, list) => list.filter((w) => text.includes(w)).length
+
+// Positive = better for this user's conditions, negative = worse.
+export function conditionScore(recipe, profile = {}) {
+  const conds = activeConditions(profile).map((c) => c.key)
+  if (!conds.length) return 0
+  const text = recipeText(recipe).toLowerCase()
+  const protein = Number(recipe.protein) || 0
+  let score = 0
+
+  const glucose = conds.some((k) => ['pcos', 'insulin', 'diabetes', 'fattyliver'].includes(k))
+  if (glucose) {
+    score -= hits(text, HIGH_GI) * 1.5
+    score += hits(text, LOW_GI) * 1.5
+    score += protein >= 20 ? 2 : 0 // protein blunts the glucose response
+  }
+  if (conds.includes('hypertension')) score -= hits(text, HIGH_SODIUM) * 2
+  if (conds.includes('cholesterol') || conds.includes('fattyliver')) score -= hits(text, FRIED) * 2
+  if (conds.includes('gout')) score -= hits(text, HIGH_PURINE) * 2
+  if (conds.includes('lactose')) score -= hits(text, DAIRY) // soft: most people tolerate curd
+  if (conds.includes('anemia') && (recipe.tags || []).includes('iron')) score += 2
+  if (conds.includes('menopause') || conds.includes('postpartum')) score += protein >= 20 ? 2 : 0
+
+  return score
+}
+
 // How many of the recipe's ingredients the user's pantry covers
 export function pantryMatch(recipe, pantry = []) {
   const have = pantry.map((p) => p.toLowerCase())
@@ -190,10 +231,25 @@ export function planMeals(profile, pantry = [], swaps = {}, cyclePhase = null) {
     let options = safe.filter((r) => r.meal === meal)
     if (!options.length) options = safe          // any safe recipe beats an allergen
     if (!options.length) options = [FALLBACK]    // extreme allergy lists
-    options = options
-      .map((r) => ({ r, score: pantryMatch(r, pantry).have + (cyclePhase === 'menstrual' && r.tags.includes('iron') ? 2 : 0) }))
+    const scored = options
+      .map((r) => ({
+        r,
+        cond: conditionScore(r, profile),
+        score: pantryMatch(r, pantry).have +
+          (cyclePhase === 'menstrual' && r.tags.includes('iron') ? 2 : 0) +
+          conditionScore(r, profile),
+      }))
       .sort((a, b) => b.score - a.score)
-      .map((x) => x.r)
+
+    // The daily rotation below cycles through every option equally, which would
+    // hand a condition-scored ranking straight back to chance. So when a
+    // condition actually has an opinion, the rotation happens inside the
+    // better-scoring options only — still a different meal each day, just never
+    // from the bottom of the list.
+    const opinionated = scored.some((x) => x.cond !== 0)
+    const pool = opinionated ? scored.slice(0, Math.max(3, Math.ceil(scored.length * 0.6))) : scored
+    options = pool.map((x) => x.r)
+
     const shift = (dayIdx + (swaps[meal] || 0)) % options.length
     result[meal] = options[(shift + options.length) % options.length]
   }

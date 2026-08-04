@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ageFromDob } from '../lib/store.js'
 import { compressImage } from '../lib/img.js'
+import { pickableConditions } from '../lib/conditions.js'
 
 const PHOTO_SLOTS = [
   { key: 'body_front', label: 'Body · Front' },
@@ -25,8 +26,10 @@ export default function Onboarding({ onDone }) {
   const [error, setError] = useState('')
   const [f, setF] = useState({
     name: '', email: '', dob: '', gender: '',
-    height: '', weight: '', chest: '', waist: '', hips: '',
+    height: '', weight: '', chest: '', waist: '', hips: '', neck: '', thigh: '', arm: '',
+    targetWeight: '',
     skinSensitivity: 'none', allergies: '', medications: '', foodsToAvoid: '',
+    conditions: [], medicalConditions: '',
     dietType: '', bodyType: '',
     goals: '', lifestyle: '', activityLevel: '', job: '',
     workStart: '09:00', workEnd: '18:00', wakeTime: '06:30', sleepTime: '22:30',
@@ -38,6 +41,13 @@ export default function Onboarding({ onDone }) {
 
   const set = (key) => (e) => setF((old) => ({ ...old, [key]: e.target.value }))
   const age = ageFromDob(f.dob)
+
+  const toggleCondition = (key) =>
+    setF((old) => {
+      const cur = new Set(old.conditions || [])
+      cur.has(key) ? cur.delete(key) : cur.add(key)
+      return { ...old, conditions: [...cur] }
+    })
 
   function useMyLocation() {
     if (!navigator.geolocation) {
@@ -152,15 +162,34 @@ export default function Onboarding({ onDone }) {
             <label className="field"><span>Weight (kg)</span>
               <input type="number" inputMode="numeric" value={f.weight} onChange={set('weight')} /></label>
           </div>
-          <p className="dim small" style={{ margin: '4px 0 10px' }}>Measurements (cm, optional)</p>
+          <label className="field"><span>Target weight (kg) — powers your goal timeline</span>
+            <input type="number" inputMode="decimal" step="0.5" value={f.targetWeight} onChange={set('targetWeight')} /></label>
+          <p className="dim small" style={{ margin: '4px 0 10px' }}>
+            Measurements (cm, optional) — <strong>neck + waist{f.gender === 'female' ? ' + hips' : ''}</strong> unlock
+            an accurate body fat %, so they are worth the two minutes.
+          </p>
           <div className="row">
+            <label className="field"><span>Neck</span>
+              <input type="number" inputMode="decimal" value={f.neck} onChange={set('neck')} /></label>
             <label className="field"><span>Chest</span>
-              <input type="number" inputMode="numeric" value={f.chest} onChange={set('chest')} /></label>
-            <label className="field"><span>Waist</span>
-              <input type="number" inputMode="numeric" value={f.waist} onChange={set('waist')} /></label>
-            <label className="field"><span>Hips</span>
-              <input type="number" inputMode="numeric" value={f.hips} onChange={set('hips')} /></label>
+              <input type="number" inputMode="decimal" value={f.chest} onChange={set('chest')} /></label>
           </div>
+          <div className="row">
+            <label className="field"><span>Waist</span>
+              <input type="number" inputMode="decimal" value={f.waist} onChange={set('waist')} /></label>
+            <label className="field"><span>Hips</span>
+              <input type="number" inputMode="decimal" value={f.hips} onChange={set('hips')} /></label>
+          </div>
+          <div className="row">
+            <label className="field"><span>Thigh</span>
+              <input type="number" inputMode="decimal" value={f.thigh} onChange={set('thigh')} /></label>
+            <label className="field"><span>Arm</span>
+              <input type="number" inputMode="decimal" value={f.arm} onChange={set('arm')} /></label>
+          </div>
+          <p className="dim" style={{ fontSize: 11.5 }}>
+            Measure relaxed and first thing in the morning. Neck just below the Adam’s apple,
+            waist at the belly button — do not suck in.
+          </p>
           <label className="field"><span>Body type (if you know it)</span>
             <select value={f.bodyType} onChange={set('bodyType')}>
               <option value="">Not sure — analyze from photos</option>
@@ -173,6 +202,29 @@ export default function Onboarding({ onDone }) {
 
       {step === 3 && (
         <div className="card">
+          <p className="dim small" style={{ marginBottom: 8 }}>
+            Health conditions — tap any that apply. These change your calorie and protein targets,
+            which exercises you are given, and how fast your plan expects you to progress.
+          </p>
+          <div style={{ marginBottom: 6 }}>
+            {pickableConditions(f).map((c) => {
+              const on = (f.conditions || []).includes(c.key)
+              return (
+                <button key={c.key} type="button"
+                  className={'chip chip-add' + (on ? ' chip-on' : '')}
+                  style={on ? undefined : { background: 'var(--card)', color: 'var(--text-dim)', borderColor: 'var(--line)' }}
+                  onClick={() => toggleCondition(c.key)}>
+                  {on ? '✓' : '＋'} {c.icon} {c.name}
+                </button>
+              )
+            })}
+          </div>
+          <label className="field" style={{ marginTop: 12 }}><span>Anything else, in your own words</span>
+            <textarea rows="2" value={f.medicalConditions} onChange={set('medicalConditions')}
+              placeholder="e.g. knee surgery in 2022, low vitamin D" /></label>
+          <p className="dim" style={{ fontSize: 11.5, marginBottom: 14 }}>
+            SAP gives lifestyle suggestions, never medical advice — none of this replaces your doctor.
+          </p>
           <label className="field"><span>Skin sensitivity</span>
             <select value={f.skinSensitivity} onChange={set('skinSensitivity')}>
               <option value="none">Not sensitive</option>

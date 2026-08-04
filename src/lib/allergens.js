@@ -102,8 +102,14 @@ function splitTerms(str) {
 
 // What the user typed → every food term that must be avoided, plus which
 // family caused it (so the UI can explain WHY something was excluded).
+// A few conditions are absolute food rules, not preferences — coeliac disease
+// means gluten causes intestinal damage, so it belongs in the same hard filter
+// as an allergy rather than in a list of tips the user has to remember.
+const CONDITION_AVOID = { celiac: ['gluten'] }
+
 export function buildAvoidance(profile = {}) {
-  const raw = [...splitTerms(profile.allergies), ...splitTerms(profile.foodsToAvoid)]
+  const fromConditions = (profile.conditions || []).flatMap((k) => CONDITION_AVOID[k] || [])
+  const raw = [...splitTerms(profile.allergies), ...splitTerms(profile.foodsToAvoid), ...fromConditions]
   const terms = new Map()   // food term -> reason label
   const cautions = new Map()
   const families = []

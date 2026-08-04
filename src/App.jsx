@@ -8,6 +8,7 @@ import Diet from './screens/Diet.jsx'
 import Care from './screens/Care.jsx'
 import Style from './screens/Style.jsx'
 import Analysis from './screens/Analysis.jsx'
+import Body from './screens/Body.jsx'
 import Inventory from './screens/Inventory.jsx'
 import Cycle from './screens/Cycle.jsx'
 import Profile from './screens/Profile.jsx'
@@ -16,6 +17,7 @@ import { runInitialAnalysis } from './lib/analysis.js'
 import Chat from './screens/Chat.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
+import { withMeasurementSnapshot } from './lib/body.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere, backfillLocalData, trackEvent } from './lib/cloud.js'
 
@@ -29,6 +31,7 @@ export default function App() {
   const openProfile = () => { setPrevTab(tab); setTab('profile') }
   const openRoutine = () => { setPrevTab(tab); setTab('routine') }
   const openCycle = () => setTab('cycle')
+  const openBody = () => { setPrevTab(tab); setTab('body') }
 
   function autoAnalyze(prof) {
     runInitialAnalysis(prof)
@@ -110,7 +113,11 @@ export default function App() {
   if (!profile) {
     return (
       <Onboarding
-        onDone={(p) => {
+        onDone={(raw) => {
+          // Onboarding measurements become the first dated snapshot, so the
+          // trend in 📐 Body is anchored from day one rather than from
+          // whenever the user first opens that tab.
+          const p = { ...raw, ...withMeasurementSnapshot(raw, {}) }
           if (saveProfile(p)) {
             setProfile(p)
             uploadInitialPhotos(p)
@@ -125,11 +132,12 @@ export default function App() {
     <>
       <ErrorBoundary inline key={tab}>
       {tab === 'home' && <Dashboard profile={profile} onOpenProfile={openProfile} onOpenCycle={openCycle} onOpenRoutine={openRoutine} />}
-      {tab === 'workout' && <Workout profile={profile} />}
-      {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} />}
+      {tab === 'workout' && <Workout profile={profile} onOpenBody={openBody} />}
+      {tab === 'diet' && <Diet profile={profile} onOpenInventory={openInventory} onOpenBody={openBody} />}
       {tab === 'care' && <Care profile={profile} onOpenInventory={openInventory} onProfileUpdate={setProfile} />}
       {tab === 'style' && <Style profile={profile} />}
-      {tab === 'stats' && <Analysis profile={profile} />}
+      {tab === 'stats' && <Analysis profile={profile} onOpenBody={openBody} />}
+      {tab === 'body' && <Body profile={profile} onBack={() => setTab(prevTab)} onOpenProfile={openProfile} onProfileUpdate={setProfile} />}
       {tab === 'inv' && <Inventory profile={profile} />}
       {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
       {tab === 'routine' && <Routine profile={profile} onBack={() => setTab(prevTab)} onProfileUpdate={setProfile} />}
@@ -145,6 +153,7 @@ export default function App() {
           ...(profile.gender === 'female' ? [['cycle', '🌸', 'Cycle']] : []),
           ['style', '👔', 'Style'],
           ['inv', '🎒', 'Items'],
+          ['body', '📐', 'Body'],
           ['stats', '📊', 'Stats'],
           ...(cloudReady ? [['ai', '✨', 'AI']] : []),
         ].map(([id, ic, lbl]) => (

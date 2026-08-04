@@ -4,6 +4,7 @@
 
 import { calorieTarget } from './nutrition.js'
 import { goalKey } from './exercises.js'
+import { lossRateFactor, lossRateNote } from './conditions.js'
 
 const KCAL_PER_KG = 7700          // ≈ energy in 1 kg of body fat
 const SAFE = { lose: [0.25, 1.0], gain: [0.1, 0.5] }
@@ -39,31 +40,37 @@ export function goalTimeline(profile = {}, series = []) {
   }
 
   if (!ratePerWeek) {
-    // project from the plan's calorie gap
+    // project from the plan's calorie gap, slowed by any logged condition —
+    // a formula that ignores hypothyroidism just promises a date the body
+    // won't meet, and a missed date is what makes people quit.
     const tdeeish = calorieTarget({ ...profile, goals: 'maintain' })
     const planned = calorieTarget(profile)
     const gap = Math.abs(tdeeish - planned) || (goalKey(profile.goals) === 'muscle' ? 300 : 400)
-    ratePerWeek = (gap * 7) / KCAL_PER_KG
+    ratePerWeek = ((gap * 7) / KCAL_PER_KG) * lossRateFactor(profile)
   }
 
   const [lo, hi] = SAFE[dir]
-  const capped = Math.min(Math.max(ratePerWeek, lo), hi)
+  const capped = Math.min(Math.max(ratePerWeek, lo * lossRateFactor(profile), 0.08), hi)
   const weeks = Math.max(1, Math.ceil(Math.abs(kgToGo) / capped))
-  const eta = new Date(Date.now() + weeks * 7 * 86400000)
+  const days = Math.max(1, Math.ceil((Math.abs(kgToGo) / capped) * 7))
+  const eta = new Date(Date.now() + days * 86400000)
 
   return {
     ready: true, done: false, current, target, dir,
     kgToGo: Math.abs(kgToGo),
     ratePerWeek: Math.round(capped * 100) / 100,
     weeks,
+    days,
+    dailyDeficit: Math.round((capped * KCAL_PER_KG) / 7 / 10) * 10,
     etaLabel: eta.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
     etaDate: eta.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }),
     source,
     fast: ratePerWeek > hi,
-    headline: `${Math.abs(kgToGo)} kg to ${dir} · about ${weeks} week${weeks > 1 ? 's' : ''}`,
+    headline: `${Math.abs(kgToGo)} kg to ${dir} · ${days} days · about ${weeks} week${weeks > 1 ? 's' : ''}`,
     note: source === 'measured'
       ? `Based on your actual weigh-ins (${Math.round(capped * 100) / 100} kg/week). Real progress isn’t a straight line — plateaus and water-weight swings are normal.`
       : `Projected from your calorie target (${Math.round(capped * 100) / 100} kg/week). Log your weight weekly and this switches to your real measured rate.`,
+    conditionNote: lossRateNote(profile),
     warn: ratePerWeek > hi
       ? `Your current pace is faster than ${hi} kg/week. Quick loss usually costs muscle and rebounds — the timeline above uses a safe pace instead.`
       : null,

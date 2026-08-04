@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import Body3D from '../components/Body3D.jsx'
-import { buildWorkout, withAnalysisFocus, generateWeek, setsRepsFor, estimateCalories, MUSCLE_NAMES, WARMUP, COOLDOWN } from '../lib/exercises.js'
+import { buildWorkout, withAnalysisFocus, generateWeek, setsRepsFor, estimateCalories, MUSCLE_NAMES, WARMUP, COOLDOWN, blockedExplained } from '../lib/exercises.js'
+import { workoutGuidance } from '../lib/conditions.js'
+import { getRegion } from '../lib/fatmap.js'
 import { PRE_WORKOUT, POST_WORKOUT, filterSafe } from '../lib/recipes.js'
 import { POSTURE_FIXES, matchKeys } from '../lib/corrections.js'
 import { getDay, saveDay, todayKey, getProfile, saveProfile } from '../lib/store.js'
@@ -11,7 +13,7 @@ import { uploadProgressPhoto } from '../lib/cloud.js'
 
 const BURN_GOAL = 500 // gentle daily active-burn reference for the meter
 
-export default function Workout({ profile }) {
+export default function Workout({ profile, onOpenBody }) {
   const [equip, setEquip] = useState(profile.equipPref || 'home')
   const [openId, setOpenId] = useState(null)
   const [day, setDay] = useState(() => getDay())
@@ -24,6 +26,9 @@ export default function Workout({ profile }) {
 
   const plan = useMemo(() => withAnalysisFocus(buildWorkout(profile, equip), profile), [profile, equip])
   const week = useMemo(() => generateWeek(profile, equip), [profile, equip])
+  const guide = useMemo(() => workoutGuidance(profile), [profile])
+  const removed = useMemo(() => blockedExplained(profile), [profile])
+  const [openFinisher, setOpenFinisher] = useState(null)
   const [openDay, setOpenDay] = useState(null)
   const [openFix, setOpenFix] = useState(null)
   const postureKeys = matchKeys(profile.analysis?.posture, POSTURE_FIXES)
@@ -167,6 +172,36 @@ export default function Workout({ profile }) {
         <p className="small dim" style={{ marginTop: 4 }}><strong>Avoid:</strong> {plan.avoid}</p>
       </section>
 
+      {guide.conditions.length > 0 && (
+        <section className="card">
+          <h2>🩺 Training with {guide.conditions.map((c) => c.name).join(' + ')}</h2>
+          {guide.prefer.slice(0, 6).map((r, i) => (
+            <p key={i} className="small ok" style={{ marginBottom: 5 }}>✓ {r.text} <span className="dim">({r.from})</span></p>
+          ))}
+          {guide.avoid.slice(0, 6).map((r, i) => (
+            <p key={i} className="small no" style={{ marginBottom: 5 }}>✗ {r.text} <span className="dim">({r.from})</span></p>
+          ))}
+          {removed.length > 0 && (
+            <p className="small" style={{ color: 'var(--accent)', marginTop: 8 }}>
+              Removed from your plans: {removed.map((r) => r.name).join(', ')} — {removed[0].from}.
+            </p>
+          )}
+          {guide.redFlags.length > 0 && (
+            <div className="consent-box" style={{ marginTop: 12 }}>
+              <strong>🚩 Stop and see a doctor for:</strong>
+              {guide.redFlags.slice(0, 5).map((r, i) => (
+                <p key={i} className="small" style={{ marginTop: 4 }}>• {r.text}</p>
+              ))}
+            </div>
+          )}
+          {onOpenBody && (
+            <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={onOpenBody}>
+              Full guidance in 📐 Body ›
+            </button>
+          )}
+        </section>
+      )}
+
       <section className="card">
         <h2>Target muscles</h2>
         <Body3D
@@ -253,6 +288,47 @@ export default function Workout({ profile }) {
         <button type="button" style={{ marginTop: 12 }} onClick={finishWorkout}>Finish workout & log calories</button>
         {finishedMsg && <p className="dim small" style={{ marginTop: 8, textAlign: 'center' }}>{finishedMsg}</p>}
       </section>
+
+      {plan.finisher && (() => {
+        const region = getRegion(plan.finisher.region)
+        if (!region) return null
+        return (
+          <section className="card">
+            <h2>{region.icon} Focus finisher — {region.name}</h2>
+            <p className="dim small" style={{ marginBottom: 10 }}>
+              Your photo scan rated this your heaviest area. Two rounds after the main session.
+              This will not burn fat off {region.name.toLowerCase()} specifically — nothing does —
+              but it builds the muscle underneath, so there is a shape there when the deficit
+              does its part.
+            </p>
+            {plan.finisher.exercises.map((ex) => (
+              <div key={'fin' + ex.id} className="ex-card">
+                <div className="ex-head" onClick={() => setOpenFinisher(openFinisher === ex.id ? null : ex.id)}>
+                  <div style={{ flex: 1 }}>
+                    <div className="ex-name">{ex.name}</div>
+                    <div className="dim small">{setsRepsFor(plan.goal, ex.primary[0] === 'cardio')} · {ex.primary.map((mm) => MUSCLE_NAMES[mm]).join(', ')}</div>
+                  </div>
+                  <span className="dim">{openFinisher === ex.id ? '▲' : '▼'}</span>
+                </div>
+                {openFinisher === ex.id && (
+                  <div className="ex-body">
+                    <ol className="small">{ex.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
+                    {ex.dos.length > 0 && <p className="small ok">✓ {ex.dos.join(' ')}</p>}
+                    {ex.donts.length > 0 && <p className="small no">✗ {ex.donts.join(' ')}</p>}
+                  </div>
+                )}
+              </div>
+            ))}
+            <p className="small no" style={{ marginTop: 8 }}>✗ {region.myth}</p>
+            <p className="dim small" style={{ marginTop: 6 }}>⏳ {region.timeline}</p>
+            {onOpenBody && (
+              <button className="ghost" type="button" style={{ marginTop: 10 }} onClick={onOpenBody}>
+                See every area in 📐 Body ›
+              </button>
+            )}
+          </section>
+        )
+      })()}
 
       <section className="card">
         <h2>🧊 Cool-down after (5 min)</h2>

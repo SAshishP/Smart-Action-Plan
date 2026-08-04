@@ -79,6 +79,38 @@ export const EXERCISES = [
     ['Gentle stretches: neck, shoulders, hips, hamstrings.', 'Hold each 20–30s, breathe.'],
     ['Perfect for sore or low-energy days.'],
     ['No bouncing in stretches.']),
+  E('deadbug', 'Dead bug', 'home', ['abs'], ['lowerback'], 4,
+    ['On your back, arms up, knees bent at 90°.', 'Lower the opposite arm and leg slowly.', 'Return, then switch sides. 8 each side.'],
+    ['Lower back stays pressed flat to the floor the whole time — that is the whole exercise.'],
+    ['Don’t let the back arch off the floor.', 'Don’t rush it — slow is the point.']),
+  E('hipthrust', 'Hip thrust', 'home', ['glutes'], ['hamstrings', 'abs'], 7,
+    ['Upper back against a sofa or bench edge, feet flat.', 'Drive the hips up until the body is a straight line.', 'Squeeze hard 2s at the top, lower with control.'],
+    ['Chin tucked, ribs down. Add a dumbbell across the hips once bodyweight is easy.'],
+    ['Don’t arch the lower back to go higher.']),
+  E('bulgarian', 'Bulgarian split squat', 'home', ['quads'], ['glutes', 'hamstrings'], 9,
+    ['Back foot up on a chair behind you.', 'Drop the back knee straight down.', 'Drive up through the front heel. 8–10 each leg.'],
+    ['Lean the torso slightly forward to hit the glute harder.'],
+    ['Don’t let the front knee cave inward.']),
+  E('stepup', 'Step-ups', 'home', ['quads'], ['glutes', 'calves'], 8,
+    ['Step onto a knee-height step or sturdy chair.', 'Drive through the whole front foot.', 'Lower slowly — don’t drop. 12 each leg.'],
+    ['Control the way down; that is where the work is.'],
+    ['Don’t push off the back foot to cheat.']),
+  E('wallsit', 'Wall sit', 'home', ['quads'], ['glutes'], 5,
+    ['Back flat on a wall, slide down to knees at 90°.', 'Hold 30–60s, breathing normally.'],
+    ['One of the few moves with real evidence for lowering blood pressure.'],
+    ['Don’t hold your breath.']),
+  E('closegrip', 'Close-grip push-ups', 'home', ['triceps'], ['chest', 'shoulders'], 7,
+    ['Hands under the chest, closer than shoulder-width.', 'Elbows tucked tight to the ribs as you lower.', 'Press back up.'],
+    ['The best bodyweight tricep builder there is.'],
+    ['Don’t flare the elbows out — that turns it back into a chest exercise.']),
+  E('bandpull', 'Band pull-aparts', 'home', ['traps'], ['shoulders'], 4,
+    ['Hold a band (or towel) at chest height, arms straight.', 'Pull the hands apart, squeezing the shoulder blades.', 'Return slowly. 15 reps.'],
+    ['Do these daily — the fastest posture fix in the app.'],
+    ['Don’t shrug the shoulders up.']),
+  E('pallof', 'Pallof press', 'home', ['obliques'], ['abs'], 5,
+    ['Band anchored at chest height to one side, stand side-on.', 'Press the hands straight out from the chest.', 'Resist the twist. 12 each side.'],
+    ['Anti-rotation work — it strengthens the waist without thickening it.'],
+    ['Don’t let the torso rotate at all.']),
 
   // ---- dumbbells ----
   E('dbbench', 'Dumbbell floor/bench press', 'db', ['chest'], ['triceps', 'shoulders'], 7,
@@ -169,7 +201,7 @@ export const EXERCISES = [
     ['Don’t let knees splay out.']),
 ]
 
-const byId = Object.fromEntries(EXERCISES.map((e) => [e.id, e]))
+export const byId = Object.fromEntries(EXERCISES.map((e) => [e.id, e]))
 
 export function goalKey(goalsText = '') {
   const g = String(goalsText).toLowerCase()
@@ -187,6 +219,28 @@ export function setsRepsFor(goal, isCardio) {
 
 export { cycleInfo, cycleInfoAt } from './cycle.js'
 import { cycleInfoAt as _cycleAt } from './cycle.js'
+import { workoutGuidance } from './conditions.js'
+
+// Exercises a logged condition rules out — a bad knee never gets prescribed
+// jumping lunges, whatever the goal says. Everything downstream filters
+// through this, including the weekly plan and the fat-map protocols.
+export function blockedExercises(profile) {
+  return workoutGuidance(profile).avoidIds
+}
+
+// What was removed and why, so the Workout screen can say so out loud instead
+// of silently serving a shorter list.
+export function blockedExplained(profile) {
+  const g = workoutGuidance(profile)
+  return [...g.avoidIds]
+    .map((id) => {
+      const ex = byId[id]
+      if (!ex) return null
+      const from = g.conditions.find((c) => (c.avoidIds || []).includes(id))
+      return { id, name: ex.name, from: from?.name || 'a logged condition' }
+    })
+    .filter(Boolean)
+}
 
 const GENTLE = ['walk', 'stretch', 'glutebridge', 'birddog', 'plank']
 const SPLITS = [
@@ -199,8 +253,9 @@ const SPLITS = [
 export function buildWorkout(profile, equip = 'home', dayOffset = 0) {
   const goal = goalKey(profile?.goals)
   const ci = _cycleAt(profile, dayOffset)
-  const pool = EXERCISES.filter((e) =>
-    equip === 'gym' ? true : equip === 'db' ? e.equip !== 'gym' : e.equip === 'home'
+  const blocked = blockedExercises(profile)
+  const pool = EXERCISES.filter(
+    (e) => (equip === 'gym' ? true : equip === 'db' ? e.equip !== 'gym' : e.equip === 'home') && !blocked.has(e.id)
   )
   const dayIdx = Math.floor(Date.now() / 86400000) + dayOffset
   const rotate = (arr) => arr.slice(dayIdx % Math.max(arr.length, 1)).concat(arr.slice(0, dayIdx % Math.max(arr.length, 1)))
@@ -212,7 +267,7 @@ export function buildWorkout(profile, equip = 'home', dayOffset = 0) {
       goal, cycle: ci,
       focus: 'Easy movement, hips and lower back comfort',
       avoid: 'Heavy lifts, intense core work, anything that spikes pain',
-      exercises: GENTLE.map((id) => byId[id]).filter(Boolean),
+      exercises: GENTLE.map((id) => byId[id]).filter((e) => e && !blocked.has(e.id)),
     }
   }
 
@@ -249,26 +304,60 @@ export function buildWorkout(profile, equip = 'home', dayOffset = 0) {
 }
 
 const FAT_FOCUS = {
-  belly: 'extra core & obliques work', 'love handles': 'obliques + overall calorie burn',
-  thighs: 'more lower-body volume', arms: 'an arm finisher each session',
-  chest: 'chest emphasis + overall deficit', back: 'rowing volume + overall deficit',
+  belly: 'extra core & deep-core work', lovehandles: 'anti-rotation core + shoulder width',
+  'love handles': 'anti-rotation core + shoulder width',
+  thighs: 'more lower-body volume', hips: 'glute-focused volume',
+  arms: 'a tricep finisher each session', chest: 'chest emphasis + rows for posture',
+  back: 'rowing volume + rear-delt work', face: 'cardio volume + evening sodium',
+  calves: 'direct calf work', 'love-handles': 'anti-rotation core + shoulder width',
 }
 
-// Add photo-analysis emphasis to any built plan
+// A short finisher aimed at whichever area the photo scan rated highest. This
+// does NOT burn fat off that area — nothing does — but it builds the muscle
+// underneath, which is what changes the shape once the deficit does its part.
+const FINISHERS = {
+  belly: ['deadbug', 'plank', 'pallof'],
+  lovehandles: ['pallof', 'sideplank', 'farmer'],
+  thighs: ['bulgarian', 'stepup', 'wallsit'],
+  hips: ['hipthrust', 'glutebridge', 'stepup'],
+  arms: ['closegrip', 'tricepdip', 'dbext'],
+  chest: ['pushup', 'inclinepushup', 'bandpull'],
+  back: ['dbrow', 'bandpull', 'superman'],
+  face: ['walk'],
+  calves: ['calfraise'],
+}
+
+// Add photo-analysis emphasis to any built plan, plus the finisher above.
 export function withAnalysisFocus(plan, profile) {
-  const areas = profile?.analysis?.fatAreas || []
-  const extras = [...new Set(areas.map((a) => FAT_FOCUS[a]).filter(Boolean))]
-  if (extras.length) {
-    return { ...plan, focus: plan.focus + '. From your photos: ' + extras.join('; ') + ' (spot reduction is a myth — the deficit does the slimming, the focus work does the shaping).' }
+  const a = profile?.analysis || {}
+  const map = a.fatMap && typeof a.fatMap === 'object' ? a.fatMap : null
+  const areas = map
+    ? Object.entries(map).filter(([, v]) => Number(v) >= 2).sort((x, y) => y[1] - x[1]).map(([k]) => k)
+    : a.fatAreas || []
+  if (!areas.length) return plan
+
+  const blocked = blockedExercises(profile)
+  const extras = [...new Set(areas.map((x) => FAT_FOCUS[x]).filter(Boolean))]
+  const top = areas.find((x) => FINISHERS[x])
+  const finisher = top
+    ? { region: top, exercises: (FINISHERS[top] || []).map((id) => byId[id]).filter((e) => e && !blocked.has(e.id)) }
+    : null
+
+  return {
+    ...plan,
+    finisher: finisher && finisher.exercises.length ? finisher : null,
+    focus: extras.length
+      ? plan.focus + '. From your photos: ' + extras.join('; ') +
+        ' — spot reduction is a myth, so the deficit does the slimming and this focus work builds the shape underneath.'
+      : plan.focus,
   }
-  return plan
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const REST = (why) => ({
   title: 'Rest & recovery', goal: 'rest', cycle: null,
   focus: why, avoid: 'Feeling guilty about resting — muscle is built on rest days',
-  exercises: ['walk', 'stretch'].map((id) => EXERCISES.find((e) => e.id === id)),
+  exercises: ['walk', 'stretch'].map((id) => byId[id]).filter(Boolean),
 })
 
 // The whole current week (Mon–Sun), goal-aware rest days, cycle-aware per date

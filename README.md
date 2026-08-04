@@ -85,6 +85,8 @@ After that it's an app: own icon, full screen, works offline, no browser bar.
 # 🎉 SAP is complete — all 7 phases
 
 **Tabs:** 🏠 Home (day plan, trackers, cycle tile, todos, reminders) ·
+📐 Body (BMI, body fat %, fat map, days-to-goal, sagging/stretch-mark/cellulite
+protocols, health-condition guidance) ·
 💪 Fit (3D muscle body, equipment-aware plans, cycle-aware, progress photos + AI) ·
 🍽️ Diet (targets, allergy-safe meal plans, recipes, world food search, photo
 calorie counter) · 🧴 Care (weather-tuned skin & hair routines, product shelf,
@@ -144,3 +146,93 @@ refresh on next open. Server functions redeploy with
 - **Persistent AI chat** — Assistant conversations now survive switching tabs
   or closing the app (stored on-device only, not synced to the cloud yet),
   with a Clear button to start fresh.
+
+## v5 — the Body report (📐 Body tab)
+
+A new tab that turns the numbers and photos you already gave SAP into a single
+readable assessment, plus what to actually do about each thing it finds.
+
+- **BMI** with the healthy weight range in kg for your height. Uses the WHO
+  Asian cut-offs (healthy tops out at 23, not 25) when your ethnicity or
+  location indicates it — South Asian bodies carry more visceral fat at the
+  same BMI, and the standard chart calls a genuinely at-risk waist "normal".
+- **Body fat %** via the US Navy tape method (neck + waist, plus hips for
+  women) — the most accurate result possible without a DEXA scan. Falls back to
+  a BMI-and-age estimate when measurements are missing, and tells you exactly
+  which ones to add and how much accuracy you gain. Shows fat mass, lean mass
+  and a confidence range, never a fake-precise single number.
+- **Waist-to-height, waist-to-hip and waist circumference** with the risk band
+  for each. Waist-to-height is the best single-tape predictor of visceral fat
+  there is: keep your waist under half your height.
+- **Fat map** — every body region rated from your photo scan and your tape
+  measurements, worst first, with per-area exercise protocols, the habits that
+  matter there, a realistic timeline, and the myth to stop believing. Framed
+  honestly throughout: you don't get to choose where fat leaves from. The
+  deficit decides how much; genetics and hormones decide the order. Targeted
+  work builds the muscle underneath so there's a shape there when it goes.
+- **Days to your goal** — an actual date, with milestones, the daily calorie gap
+  it assumes, and the body fat % you should land at. Slowed automatically for
+  conditions that genuinely slow fat loss, so the date is one your body can meet.
+- **Sagging, stretch marks, cellulite, loose skin, love handles, double chin,
+  lower-belly pooch, posture** — each with what it actually is, what genuinely
+  helps, the exercises, **what does nothing**, a timeline, and when the honest
+  answer is a doctor rather than another year of trying. Nothing here promises
+  to erase anything it can't.
+- **Health conditions** — PCOS/PCOD, thyroid (both directions), insulin
+  resistance, type 2 diabetes, blood pressure, cholesterol, fatty liver,
+  anaemia, endometriosis, asthma, knee and back pain, IBS, reflux, gout, kidney
+  disease, pregnancy, postpartum, menopause, coeliac, lactose intolerance and
+  migraine. Tick them in Onboarding or Profile — or just type "PCOD and
+  thyroid" and SAP picks it up from your own words.
+
+**What ticking a condition actually changes** — it is not a label, it rewires
+the app:
+
+- Calorie target drops ~7% for hypothyroidism, because a slow thyroid really
+  does burn less. Protein target rises to 1.6 g/kg for PCOS and menopause.
+- Pregnancy switches the whole app off deficits — the target becomes
+  maintenance regardless of what your goal says.
+- Kidney disease **hides** the protein number on purpose. That one has to come
+  from your doctor, not an app.
+- Unsafe exercises disappear from your plans: no lunges or jumping with a knee
+  problem, no sit-ups or Superman with a disc issue, no planks or supine work
+  during pregnancy. The Workout tab names what it removed and why.
+- Meal plans reorder — lower-GI and higher-protein options surface first for
+  PCOS and insulin resistance, soy-sauce dishes thin out for high blood
+  pressure. Nothing is hidden; you can still swap to anything.
+- Coeliac disease hard-blocks gluten through the same filter as an allergy,
+  because it causes intestinal damage rather than discomfort.
+- Every condition carries its own **🚩 see a doctor for** list.
+
+**Photo scan upgrade.** The AI now also rates every body region 0–3, estimates
+your body fat visually, and flags sagging, stretch marks (new/red vs
+mature/white — the stage decides whether treatment works at all) and muscle
+definition. The 📐 Body scan hands the model your *measured* BMI and body fat %
+up front, so it interprets real numbers instead of guessing them off a picture.
+
+**Measurements.** Neck, chest, waist, hips, thigh and arm, in Onboarding,
+Profile and Body. Each save keeps a dated snapshot, so the tape becomes a trend.
+Neck + waist (+ hips for women) is what unlocks the accurate body fat method —
+about two minutes of work for a much better number.
+
+**The tape trend.** Measurements saved anywhere — Onboarding, Profile or Body —
+land in the same dated history, and 📐 Body shows what each one has actually
+done since the first time you recorded it ("Waist 95 → 90 cm, −5 cm in 64
+days"). Two saves on the same day overwrite rather than stack, so a correction
+doesn't count as progress. This is the number worth watching: a waist that drops
+while the scale sits still means you lost fat and held muscle — the good version
+of a plateau, and the one that makes people quit because the scale didn't move.
+
+**The assistant knows all of it.** The ✨ AI tab now receives your health
+conditions, measurements, body composition and the exact calorie and protein
+targets the app is showing you — so it can't quote you a different calorie
+number than the Diet tab, and it answers a PCOS question knowing you logged
+PCOS. Where a condition means SAP deliberately sets no number (protein with
+kidney disease), the assistant is told not to helpfully invent one either.
+
+> Note for the owner: that last change touches `supabase/functions/ai-chat`.
+> Run `supabase functions deploy ai-chat` once to pick it up. Everything else
+> ships with the normal Vercel deploy.
+
+Everything above is informative, not a medical assessment. For symptoms,
+medication or anything health-critical, the app says see a doctor, and means it.
