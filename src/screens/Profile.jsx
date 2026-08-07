@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { getProfile, saveProfile, ageFromDob } from '../lib/store.js'
-import { compressImage } from '../lib/img.js'
+import { compressImage, compressFor } from '../lib/img.js'
+import { checkPhoto } from '../lib/photo-quality.js'
+import { guideFor, GLOBAL_RULES } from '../lib/photoguide.js'
 import { uploadProgressPhoto } from '../lib/cloud.js'
 import { runInitialAnalysis } from '../lib/analysis.js'
 import { pickableConditions } from '../lib/conditions.js'
@@ -17,6 +19,9 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
   const [f, setF] = useState({ ...profile })
   const [msg, setMsg] = useState('')
   const [aiBusy, setAiBusy] = useState(false)
+  const [quality, setQuality] = useState({})
+  const [openGuide, setOpenGuide] = useState(null)
+  const [showRules, setShowRules] = useState(false)
 
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }))
 
@@ -49,8 +54,17 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
     e.target.value = ''
     if (!file) return
     try {
-      const dataUrl = await compressImage(file, 720, 0.6)
-      apply({ photos: { ...(getProfile().photos || {}), [slot]: dataUrl } }, `${slot.replace('_', ' ')} updated ✓`)
+      // Measure the original before we compress it — a warning about a blurry
+      // or badly lit photo is worth far more than the analysis it would
+      // otherwise produce. This never blocks the upload.
+      const q = await checkPhoto(file, slot)
+      const c = compressFor(slot)
+      const dataUrl = await compressImage(file, c.maxSide, c.quality)
+      apply({
+        photos: { ...(getProfile().photos || {}), [slot]: dataUrl },
+        photoQuality: { ...(getProfile().photoQuality || {}), [slot]: { level: q.level, flags: q.flags, at: new Date().toISOString().slice(0, 10) } },
+      }, `${slot.replace('_', ' ')} updated ✓`)
+      setQuality((old) => ({ ...old, [slot]: q }))
       uploadProgressPhoto(dataUrl, slot + '_initial', new Date().toISOString().slice(0, 10))
     } catch {
       setMsg('That photo could not be read — try another one.')
@@ -137,24 +151,85 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
 
       <section className="card">
         <h2>📸 Initial photos <span className="dim small">tap to retake / replace</span></h2>
-        <div className="photo-grid">
-          {PHOTO_SLOTS.map(([slot, label]) => (
-            <div className="photo-slot" key={slot}>
-              {p.photos?.[slot] ? <img src={p.photos[slot]} alt={label} /> : <span>{label}<br />＋</span>}
-              <div className="photo-slot-actions">
-                <label className="photo-slot-btn" aria-label={`Take photo — ${label}`}>
-                  📷
-                  <input type="file" accept="image/*" capture={slot.startsWith('face') ? 'user' : 'environment'}
-                    onChange={(e) => replacePhoto(slot, e)} />
-                </label>
-                <label className="photo-slot-btn" aria-label={`Choose from gallery — ${label}`}>
-                  🖼
-                  <input type="file" accept="image/*" onChange={(e) => replacePhoto(slot, e)} />
-                </label>
+        <p className="dim small" style={{ marginBottom: 8 }}>
+          The photo decides how good the analysis can be. Overhead light alone reads as under-eye
+          shadows and a slack jawline that are not there — daylight from a window in front of you
+          fixes almost everything.
+        </p>
+        <button className="ghost" type="button" style={{ marginBottom: 10 }}
+          onClick={() => setShowRules(!showRules)}>
+          {showRules ? 'Close' : '📖 How to take these properly'}
+        </button>
+        {showRules && (
+          <div style={{ marginBottom: 12 }}>
+            {GLOBAL_RULES.map((r, i) => (
+              <div key={i} style={{ marginBottom: 8 }}>
+                <p className="small" style={{ marginBottom: 2 }}>• {r.rule}</p>
+                <p className="dim" style={{ fontSize: 11.5, marginLeft: 10 }}>{r.why}</p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+
+        <div className="photo-grid">
+          {PHOTO_SLOTS.map(([slot, label]) => {
+            const q = quality[slot] || p.photoQuality?.[slot]
+            const dot = q?.level === 'poor' ? '#ff6b81' : q?.level === 'soft' ? '#ffb454' : q?.level === 'good' ? '#7ee2b8' : null
+            return (
+              <div className="photo-slot" key={slot}>
+                {p.photos?.[slot] ? <img src={p.photos[slot]} alt={label} /> : <span>{label}<br />＋</span>}
+                {dot && <i className="photo-quality-dot" style={{ background: dot }} title={q.level} />}
+                <div className="photo-slot-actions">
+                  <label className="photo-slot-btn" aria-label={`Take photo — ${label}`}>
+                    📷
+                    <input type="file" accept="image/*" capture={slot.startsWith('face') ? 'user' : 'environment'}
+                      onChange={(e) => replacePhoto(slot, e)} />
+                  </label>
+                  <label className="photo-slot-btn" aria-label={`Choose from gallery — ${label}`}>
+                    🖼
+                    <input type="file" accept="image/*" onChange={(e) => replacePhoto(slot, e)} />
+                  </label>
+                  <button type="button" className="photo-slot-btn" aria-label={`How to shoot ${label}`}
+                    onClick={() => setOpenGuide(openGuide === slot ? null : slot)}>ⓘ</button>
+                </div>
+              </div>
+            )
+          })}
         </div>
+
+        {openGuide && guideFor(openGuide) && (() => {
+          const g = guideFor(openGuide)
+          return (
+            <div className="consent-box" style={{ marginTop: 12 }}>
+              <p className="small" style={{ marginBottom: 6 }}><strong>{g.icon} {g.label}</strong></p>
+              <p className="small" style={{ marginBottom: 4 }}><strong>Framing.</strong> {g.framing}</p>
+              <p className="small" style={{ marginBottom: 4 }}><strong>Distance.</strong> {g.distance}</p>
+              <p className="small" style={{ marginBottom: 4 }}><strong>Angle.</strong> {g.angle}</p>
+              <p className="small" style={{ marginBottom: 6 }}><strong>Wear.</strong> {g.clothing}</p>
+              {g.tips.map((t, i) => <p key={i} className="dim small" style={{ marginBottom: 3 }}>• {t}</p>)}
+              <p className="small no" style={{ marginTop: 6 }}>✗ <strong>Most common mistake.</strong> {g.commonMistake}</p>
+            </div>
+          )
+        })()}
+
+        {/* Whatever the check found on the photo just taken. Advice, never a
+            block — the user can always keep the photo they have. */}
+        {Object.entries(quality).filter(([, q]) => q?.issues?.length).map(([slot, q]) => (
+          <div key={slot} className="consent-box" style={{ marginTop: 10 }}>
+            <p className="small" style={{ marginBottom: 4 }}>
+              <strong>{slot.replace('_', ' ')}</strong> — {q.level === 'poor' ? 'worth retaking' : 'usable, could be better'}
+            </p>
+            {q.issues.map((it, i) => (
+              <p key={i} className="small" style={{ marginBottom: 4 }}>
+                • {it.title} <span className="dim">{it.fix}</span>
+              </p>
+            ))}
+            <button className="mini ghost" type="button"
+              onClick={() => setQuality((old) => { const n = { ...old }; delete n[slot]; return n })}>
+              Keep this photo
+            </button>
+          </div>
+        ))}
       </section>
 
       <section className="card">

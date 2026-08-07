@@ -139,6 +139,13 @@ button.mini {
   font-size: 14px; position: relative; overflow: hidden; cursor: pointer;
 }
 .photo-slot-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+/* A button here must not inherit the app's full-width button styling. */
+button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
+/* Quality verdict for a taken photo: green good, amber usable, red retake. */
+.photo-quality-dot {
+  position: absolute; top: 6px; right: 6px; width: 10px; height: 10px;
+  border-radius: 50%; z-index: 2; box-shadow: 0 0 0 2px rgba(10,15,25,0.55);
+}
 .consent-box {
   background: var(--accent-soft); border: 1px solid var(--accent);
   border-radius: var(--radius); padding: 16px; font-size: 14px; line-height: 1.55;

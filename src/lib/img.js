@@ -1,4 +1,25 @@
-// Compress a photo on-device before saving/uploading (~60–120 KB each)
+// How hard to compress, per photo slot.
+//
+// The old single setting was 720px at q0.6 for everything, which quietly capped
+// how good the analysis could ever be: pores, blackheads, fine stretch marks,
+// split ends and a scalp at the parting are simply not present in a 720px JPEG
+// at q0.6, so the scan would answer "texture: good" when the honest answer was
+// that it could not see the texture at all.
+//
+// Body shots are an outline read and genuinely do not need the detail. Face and
+// hair do. The cost of the split is real but small: roughly 250 KB per detail
+// photo against 90 KB before, so a full set of 12 goes from ~1 MB to ~2.4 MB.
+// On the 1 GB free bucket that is still room for around 400 users.
+export const COMPRESS = {
+  detail: { maxSide: 1280, quality: 0.72 },
+  shape: { maxSide: 900, quality: 0.65 },
+}
+
+const DETAIL_SLOT = /^(face|hair)_/
+
+export const compressFor = (slot) => (DETAIL_SLOT.test(String(slot)) ? COMPRESS.detail : COMPRESS.shape)
+
+// Compress a photo on-device before saving/uploading.
 export function compressImage(file, maxSide = 720, quality = 0.6) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)

@@ -11,6 +11,8 @@ import { calorieTarget, proteinTarget, targetExplained } from '../lib/nutrition.
 import { getProfile, saveProfile } from '../lib/store.js'
 import { getHistory } from '../lib/history.js'
 import { runBodyScan } from '../lib/analysis.js'
+import { runDeepScan, GROUPS, findingsOf, scanConfidence, UnsuitableImage } from '../lib/deepscan.js'
+import { protocolsFor, getSkinProtocol, TEXT_ONLY_PROTOCOLS } from '../lib/skinprotocols.js'
 
 const TONE = { good: '#7ee2b8', warn: '#ffb454', bad: '#ff6b81', neutral: 'var(--text-dim)' }
 
@@ -54,6 +56,10 @@ export default function Body({ profile, onBack, onOpenProfile, onProfileUpdate }
   const [openConcern, setOpenConcern] = useState(null)
   const [openCondition, setOpenCondition] = useState(null)
   const [scanBusy, setScanBusy] = useState(false)
+  const [deepBusy, setDeepBusy] = useState(false)
+  const [openGroup, setOpenGroup] = useState(null)
+  const [openProto, setOpenProto] = useState(null)
+  const [showTextOnly, setShowTextOnly] = useState(false)
   const [showAddConcern, setShowAddConcern] = useState(false)
   const [m, setM] = useState({
     neck: profile.neck || '', chest: profile.chest || '', waist: profile.waist || '',
@@ -77,6 +83,9 @@ export default function Body({ profile, onBack, onOpenProfile, onProfileUpdate }
   const work = useMemo(() => workoutGuidance(p), [p])
   const blocked = useMemo(() => blockedExercises(p), [p])
   const trend = useMemo(() => measurementTrend(p), [p])
+  const deep = p.deepScan || null
+  const deepConf = useMemo(() => (deep ? scanConfidence(deep) : { pct: 0, rated: 0, total: 0 }), [deep])
+  const deepProtocols = useMemo(() => (deep ? protocolsFor(findingsOf(deep)) : []), [deep])
   const comp = completeness(p)
 
   function apply(patch, note) {
@@ -129,6 +138,23 @@ export default function Body({ profile, onBack, onOpenProfile, onProfileUpdate }
       setMsg('⚠️ ' + e.message)
     } finally {
       setScanBusy(false)
+    }
+  }
+
+  async function runDeep() {
+    setDeepBusy(true)
+    setMsg('')
+    try {
+      const patch = await runDeepScan(getProfile())
+      apply(patch, 'Deep scan complete ✓')
+    } catch (e) {
+      // A refusal is not an error the user did something wrong for. Say what
+      // the app needs and move on — no lecture, no repeated warning.
+      setMsg(e instanceof UnsuitableImage
+        ? 'That photo could not be analysed. SAP reads open body photos only — retake it and it will work.'
+        : '⚠️ ' + e.message)
+    } finally {
+      setDeepBusy(false)
     }
   }
 
@@ -598,6 +624,139 @@ export default function Body({ profile, onBack, onOpenProfile, onProfileUpdate }
           )}
         </section>
       )}
+
+      {/* --------------------------------------------------- deep scan ---- */}
+      <section className="card">
+        <h2>🔬 Deep scan</h2>
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          Reads every photo you have given SAP and rates {' '}
+          {GROUPS.reduce((n, g) => n + g.attrs.length, 0)} things across your skin, body,
+          eyes, hair and scalp — then tells you what to do about each one it finds.
+          Anything it cannot genuinely see it marks <em>unclear</em> rather than guessing.
+        </p>
+
+        <button className="ghost" type="button" onClick={runDeep} disabled={deepBusy}>
+          {deepBusy ? 'Reading your photos… (about a minute)' : deep ? '🔁 Re-run deep scan' : '🔬 Run my deep scan'}
+        </button>
+
+        {deep && (
+          <>
+            <div className="chips" style={{ marginTop: 12 }}>
+              <span className="chip">📅 {deep.at}</span>
+              <span className="chip">
+                {deepConf.pct}% readable ({deepConf.rated}/{deepConf.total})
+              </span>
+            </div>
+            {deepConf.pct < 60 && (
+              <div className="consent-box" style={{ marginTop: 10 }}>
+                <strong>Only {deepConf.pct}% of this could be read.</strong> That is almost always the
+                photos, not your body — usually overhead light, a phone held too close, or beauty mode
+                left on. Retake them near a window with the rear camera and this fills in.
+              </div>
+            )}
+
+            {[deep.faceSummary, deep.hairSummary, deep.bodySummary].filter(Boolean).map((s, i) => (
+              <div key={i} className="analysis small" style={{ marginTop: 10 }}>{s}</div>
+            ))}
+
+            {GROUPS.map((g) => {
+              const items = (deep[g.key] || []).filter((it) => it.rated)
+              if (!items.length) return null
+              const worst = items.filter((it) => it.tone === 'bad').length
+              return (
+                <Collapse
+                  key={g.key}
+                  title={`${g.icon} ${g.label}`}
+                  sub={worst ? `${items.length} rated · ${worst} worth attention` : `${items.length} rated · nothing flagged`}
+                  open={openGroup === g.key}
+                  onToggle={() => setOpenGroup(openGroup === g.key ? null : g.key)}
+                >
+                  <div className="attr-list">
+                    {items.map((it) => (
+                      <Meter
+                        key={it.key}
+                        label={it.label}
+                        value={it.value}
+                        pct={it.score}
+                        tone={it.tone}
+                        note={it.note || null}
+                      />
+                    ))}
+                  </div>
+                  {(deep[g.key] || []).some((it) => !it.rated) && (
+                    <p className="dim small" style={{ marginTop: 10 }}>
+                      Not readable from your photos:{' '}
+                      {(deep[g.key] || []).filter((it) => !it.rated).map((it) => it.label.toLowerCase()).join(', ')}.
+                    </p>
+                  )}
+                </Collapse>
+              )
+            })}
+
+            {deepProtocols.length > 0 && (
+              <>
+                <h2 style={{ marginTop: 18 }}>What to do about it</h2>
+                <p className="dim small" style={{ marginBottom: 8 }}>
+                  Only what the scan rated moderate or worse. Anything milder is left alone on
+                  purpose — treating "mild" is how an app turns a non-problem into a worry.
+                </p>
+                {deepProtocols.map((p) => (
+                  <Collapse
+                    key={p.key}
+                    title={`${p.icon} ${p.name}`}
+                    sub={p.timeline}
+                    open={openProto === p.key}
+                    onToggle={() => setOpenProto(openProto === p.key ? null : p.key)}
+                  >
+                    <p className="small"><strong>What it actually is.</strong> {p.what}</p>
+
+                    <p className="small" style={{ marginTop: 12 }}><strong>What genuinely helps</strong></p>
+                    {p.helps.map((h, i) => <p key={i} className="small ok" style={{ marginBottom: 4 }}>✓ {h}</p>)}
+
+                    <p className="small" style={{ marginTop: 12 }}><strong>What does nothing</strong></p>
+                    {p.doesNothing.map((h, i) => <p key={i} className="small no" style={{ marginBottom: 4 }}>✗ {h}</p>)}
+
+                    <p className="small" style={{ marginTop: 12 }}>⏳ <strong>Timeline.</strong> {p.timeline}</p>
+                    <p className="small" style={{ marginTop: 6, color: 'var(--accent)' }}>🩺 <strong>Doctor.</strong> {p.doctor}</p>
+                  </Collapse>
+                ))}
+              </>
+            )}
+          </>
+        )}
+
+        {/* Guidance SAP will never ask for a photo of. Opt-in, never surfaced
+            by a scan finding, and never shown unprompted. */}
+        <button className="ghost" type="button" style={{ marginTop: 12 }}
+          onClick={() => setShowTextOnly(!showTextOnly)}>
+          {showTextOnly ? 'Close' : 'Other concerns — no photo involved ›'}
+        </button>
+        {showTextOnly && (
+          <div style={{ marginTop: 10 }}>
+            <p className="dim small" style={{ marginBottom: 8 }}>
+              These are common and SAP has guidance for them, but it will never ask you to
+              photograph the area and cannot analyse it. The advice below is the whole feature.
+            </p>
+            {TEXT_ONLY_PROTOCOLS.map((k) => getSkinProtocol(k)).filter(Boolean).map((p) => (
+              <Collapse
+                key={p.key}
+                title={`${p.icon} ${p.name}`}
+                sub={p.timeline}
+                open={openProto === p.key}
+                onToggle={() => setOpenProto(openProto === p.key ? null : p.key)}
+              >
+                <p className="small"><strong>What it actually is.</strong> {p.what}</p>
+                <p className="small" style={{ marginTop: 12 }}><strong>What genuinely helps</strong></p>
+                {p.helps.map((h, i) => <p key={i} className="small ok" style={{ marginBottom: 4 }}>✓ {h}</p>)}
+                <p className="small" style={{ marginTop: 12 }}><strong>What does nothing</strong></p>
+                {p.doesNothing.map((h, i) => <p key={i} className="small no" style={{ marginBottom: 4 }}>✗ {h}</p>)}
+                <p className="small" style={{ marginTop: 12 }}>⏳ {p.timeline}</p>
+                <p className="small" style={{ marginTop: 6, color: 'var(--accent)' }}>🩺 {p.doctor}</p>
+              </Collapse>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* -------------------------------------------------------- scan ---- */}
       <section className="card">

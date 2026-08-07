@@ -110,29 +110,17 @@ export async function backfillLocalData() {
     return   // storage blocked — nothing local to recover anyway
   }
 
-  // 1. Local chat thread → ai_messages, paired user question + model reply
-  try {
-    const raw = localStorage.getItem('sap_chat_v1')
-    const msgs = raw ? JSON.parse(raw) : []
-    const rows = []
-    for (let i = 0; i < msgs.length; i++) {
-      if (msgs[i]?.role !== 'user') continue
-      const next = msgs[i + 1]
-      rows.push({
-        user_id: u.id,
-        source: 'backfill',
-        user_text: String(msgs[i].text || ''),
-        reply_text: next?.role === 'model' ? String(next.text || '') : null,
-        image_count: msgs[i].img ? 1 : 0,
-      })
-    }
-    if (rows.length) {
-      const { error } = await supabase.from('ai_messages').insert(rows)
-      if (error) console.error('backfill chat:', error.message)
-    }
-  } catch (e) {
-    console.error('backfill chat:', e)
-  }
+  // 1. (removed) Local chat threads used to be pushed into ai_messages from
+  // here. That required the browser to have INSERT on the audit log — and if
+  // the browser can insert, a user can sit in dev tools and write whatever they
+  // like into it: forged replies, someone else's image paths, a backdated
+  // created_at. An audit trail its own subject can write to is worse than none,
+  // because it looks authoritative. schema-security.sql revokes that grant, and
+  // the ai-chat edge function (service_role) remains the only writer.
+  //
+  // What this costs: pre-cloud chat threads sitting in an old device's
+  // localStorage are no longer recovered into the owner's view. That was a
+  // one-time nicety, and it is not worth a log that can be faked.
 
   // 2. Any local day the cloud hasn't seen
   try {

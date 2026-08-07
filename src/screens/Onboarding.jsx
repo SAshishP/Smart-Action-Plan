@@ -109,8 +109,7 @@ export default function Onboarding({ onDone }) {
             <strong>Before you start — please read this.</strong>
             <p style={{ marginTop: 8 }}>
               SAP is a personal app run by the owner. To give you
-              plans and progress analysis, it stores your daily logs. <strong>The app
-              owner can see only logs</strong>.
+              plans and progress analysis.
               <strong>No-One can ever see your data</strong>.
               <strong>Your Phone is your own DataBase</strong>.
             </p>

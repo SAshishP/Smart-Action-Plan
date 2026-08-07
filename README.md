@@ -234,5 +234,64 @@ kidney disease), the assistant is told not to helpfully invent one either.
 > Run `supabase functions deploy ai-chat` once to pick it up. Everything else
 > ships with the normal Vercel deploy.
 
+## v6 — the deep scan, photo coaching, and a security pass
+
+**🔬 Deep scan (📐 Body).** Reads every photo you have given SAP and rates 57
+things across six groups — face skin (pores, blackheads, whiteheads, pimples,
+acne scars, pigmentation, redness, oiliness, dryness, texture, tone evenness,
+radiance, jawline), eyes (under-eye darkness, bags, puffiness, and *which kind*
+of darkness it is — pigment, vascular or a hollow, because the three need
+completely different things), body composition (definition, firmness, chest/arm/
+abdominal laxity, a visual body-fat band), body skin (body acne, strawberry skin,
+ingrown hairs, underarm darkness, tan lines, uneven tone, rash, hives, scars,
+cellulite, dryness, body hair), hair (density, thickness, volume, curl pattern,
+split ends, frizz, breakage, shine, hairline, part width, thinning pattern) and
+scalp — where **oily scalp and dry scalp are now rated separately**, because they
+are opposite problems with opposite treatments and one combined score could never
+tell you which routine you needed.
+
+Anything it cannot genuinely see it marks **unclear** instead of guessing, and it
+shows you what percentage it could actually read. A low number is a photo
+problem, not a verdict on your body.
+
+**13 new guidance protocols** for what it finds — strawberry skin, ingrown hairs,
+underarm darkness, uneven tone and tan lines, marks and scars, body acne, dry
+skin, rash and hives, oily scalp, dry scalp, thinning hair, under-eye darkness —
+each in the same shape as the rest of SAP: what it actually is, what genuinely
+helps, **what does nothing**, a real timeline, and when the honest answer is a
+doctor. Only findings rated moderate or worse surface a protocol; treating "mild"
+is how an app turns a non-problem into a worry.
+
+**📖 Photo coaching.** Every photo slot now has specific, physical instructions —
+distance, lens height, angle, what to wear, and the single most common mistake
+for that shot. Plus 17 rules that apply to all of them. This matters more than it
+sounds: overhead light drops shadows into your eye sockets and under your jaw,
+and the scan reads them as under-eye darkness and a slackening jawline. It would
+hand you a plan for a problem you do not have.
+
+**Automatic photo check.** Before a photo is saved, SAP measures its resolution,
+sharpness, exposure, contrast and colour cast, and tells you plainly if it is
+blurry, too dark, backlit, shot under yellow bulb light, or focused on the wall
+behind you. It is always a warning and never a block — you can keep any photo you
+want. Photos are also compressed less aggressively now (1280px for face and hair,
+up from 720px), because telling you to shoot in HD was pointless while the app
+immediately threw that detail away.
+
+**Security.** A full adversarial audit found that the AI endpoint accepted the
+public anon key and would run your Gemini key for anyone who viewed source — with
+those requests invisible in your audit log. That, a missing rate limit, a
+forgeable audit log and an SSRF in the reminder sender are all fixed. See
+[SECURITY.md](SECURITY.md) for what was wrong, what was already safe, and what
+you must deploy.
+
+> **Owner: this release needs three things run once.**
+> 1. Supabase → SQL Editor → run `supabase/schema-security.sql`
+> 2. `supabase functions deploy ai-chat` and `supabase functions deploy send-reminders`
+> 3. `supabase secrets set AI_ALLOWED_ORIGINS=https://your-app.vercel.app`
+>
+> Step 2 is the critical one.
+
 Everything above is informative, not a medical assessment. For symptoms,
 medication or anything health-critical, the app says see a doctor, and means it.
+The deep scan reads normal clothed and fitness-wear photos only; it refuses
+anything else and stores nothing when it does.

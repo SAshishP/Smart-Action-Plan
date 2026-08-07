@@ -69,6 +69,8 @@ Deno.serve(async (req) => {
   const { data: subs, error } = await supabase
     .from('push_subscriptions')
     .select('endpoint, subscription, tz, user_id')
+  // The five real web-push services. Anything else is a forged row.
+  const PUSH_HOST = /^https:\/\/([a-z0-9-]+\.)?(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9-]+\.notify\.windows\.com|[a-z0-9-]+\.push\.apple\.com)\//i
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
   const { data: profs } = await supabase.from('profiles').select('id, data')
@@ -78,6 +80,19 @@ Deno.serve(async (req) => {
   let removed = 0
 
   for (const s of subs || []) {
+    // This function runs as service_role and POSTs to whatever endpoint is
+    // stored on the row. That value came from a client, so without this check
+    // any signed-up user can point it at an internal address (the cloud
+    // metadata service, for instance) and have our own server fetch it on a
+    // 15-minute schedule, forever. The DB constraint in schema-security.sql is
+    // the primary guard; this is the one that still holds if that file was
+    // never run, or if a row predates it.
+    const target = (s.subscription as { endpoint?: string } | null)?.endpoint || s.endpoint
+    if (typeof target !== 'string' || !PUSH_HOST.test(target)) {
+      console.warn('skipping subscription with a non-push endpoint:', String(target).slice(0, 60))
+      continue
+    }
+
     const profile = profileOf.get(s.user_id) || {}
     const now = localMinutes(s.tz || 'UTC')
     const due = reminders(profile).filter((r) => {
