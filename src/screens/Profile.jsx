@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getProfile, saveProfile, ageFromDob } from '../lib/store.js'
-import { compressImage, compressFor } from '../lib/img.js'
+import { compressImage, compressFor, COMPRESS } from '../lib/img.js'
 import { checkPhoto } from '../lib/photo-quality.js'
 import { guideFor, GLOBAL_RULES } from '../lib/photoguide.js'
 import { uploadProgressPhoto } from '../lib/cloud.js'
@@ -8,6 +8,9 @@ import { runInitialAnalysis } from '../lib/analysis.js'
 import { pickableConditions } from '../lib/conditions.js'
 import { withMeasurementSnapshot } from '../lib/body.js'
 import { getMode, setMode, resolveMode, MODES, MODE_LABELS } from '../lib/mode.js'
+import {
+  ACCENTS, BACKDROPS, accentSwatch, applyAppearance, getAccent, getBackdrop,
+} from '../lib/appearance.js'
 
 const PHOTO_SLOTS = [
   ['body_front', 'Body F'], ['body_left', 'Body L'], ['body_right', 'Body R'], ['body_back', 'Body B'],
@@ -73,6 +76,35 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
     }
   }
 
+  // The cover and the profile picture. Deliberately NOT stored under
+  // profile.photos: everything in there is fed to the scan by analysis.js and
+  // uploaded as a progress photo. A picture chosen because it looks nice must
+  // never end up in either, so it lives on its own key and skips both paths.
+  async function pickDecorPhoto(key, e) {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const c = key === 'avatar' ? COMPRESS.avatar : COMPRESS.cover
+      const dataUrl = await compressImage(file, c.maxSide, c.quality)
+      apply({ [key]: dataUrl }, key === 'avatar' ? 'Profile picture updated ✓' : 'Cover updated ✓')
+    } catch {
+      setMsg('That image could not be read — try another one.')
+    }
+  }
+
+  // Colour choices live on the profile so they sync, and have to be re-applied
+  // immediately: saveProfile alone would leave the screen showing the old
+  // colours until something else forced a re-render.
+  function setLook(patch) {
+    const np = { ...getProfile(), ...patch }
+    saveProfile(np)
+    setP(np)
+    setF({ ...np })
+    onProfileUpdate?.(np)
+    applyAppearance(np, resolveMode(getMode()))
+  }
+
   async function rerunAnalysis() {
     setAiBusy(true)
     setMsg('')
@@ -92,8 +124,8 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
     <div className="screen with-tabbar">
       {onBack && <button className="mini ghost" type="button" onClick={onBack} style={{ marginBottom: 10 }}>← Back</button>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        {p.photos?.face_front
-          ? <img src={p.photos.face_front} alt="me" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)' }} />
+        {p.avatar
+          ? <img src={p.avatar} alt="me" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)' }} />
           : <span style={{ fontSize: 40 }}>👤</span>}
         <div>
           <h1 style={{ fontSize: 22 }}>{p.name || 'Your profile'}</h1>
@@ -128,27 +160,118 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
       </section>
 
       <section className="card">
-        <h2>🎨 Appearance</h2>
-        <p className="dim small" style={{ marginBottom: 10 }}>
-          Your choice, saved on this device — so your phone and your laptop can
-          differ if you want them to.
+        <h2>🖼️ Your pictures</h2>
+        <p className="dim small" style={{ marginBottom: 12 }}>
+          Pick any photo you like from your gallery. These are just for how the app
+          looks — they are never analysed, never compared, and never part of your
+          progress photos.
         </p>
+
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+          <div className="avatar-pick">
+            {p.avatar
+              ? <img src={p.avatar} alt="profile picture" />
+              : <span>👤</span>}
+            <label className="avatar-pick-btn" aria-label="Choose a profile picture">
+              ✎
+              <input type="file" accept="image/*" onChange={(e) => pickDecorPhoto('avatar', e)} />
+            </label>
+          </div>
+          <div style={{ flex: 1 }}>
+            <p className="small" style={{ fontWeight: 600, marginBottom: 2 }}>Profile picture</p>
+            <p className="dim small">Shown here and on Home. Tap the pencil to change it.</p>
+            {p.avatar && (
+              <button className="mini ghost" type="button" style={{ marginTop: 8 }}
+                onClick={() => apply({ avatar: '' }, 'Profile picture removed ✓')}>Remove</button>
+            )}
+          </div>
+        </div>
+
+        <p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Home cover photo</p>
+        <div className={'hero' + (p.heroPhoto ? '' : ' short')} style={{ marginBottom: 10 }}>
+          {p.heroPhoto && <img src={p.heroPhoto} alt="cover" />}
+          <div className="hero-body">
+            <div className="script">{p.heroPhoto ? 'Your cover' : 'No cover yet'}</div>
+            <p className="dim small" style={{ marginTop: 4 }}>
+              {p.heroPhoto ? 'This sits behind your name on Home.' : 'Home uses a plain background until you pick one.'}
+            </p>
+          </div>
+        </div>
+        <div className="row">
+          <label className="pick-btn">
+            {p.heroPhoto ? 'Change cover' : 'Choose a cover'}
+            <input type="file" accept="image/*" onChange={(e) => pickDecorPhoto('heroPhoto', e)} />
+          </label>
+          {p.heroPhoto && (
+            <button className="ghost" type="button" style={{ width: 'auto' }}
+              onClick={() => apply({ heroPhoto: '' }, 'Cover removed ✓')}>Remove</button>
+          )}
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>🎨 Appearance</h2>
+
+        <p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Light or dark</p>
         <div className="seg">
           {MODES.map((m) => {
             const meta = MODE_LABELS[m]
             return (
               <button key={m} type="button"
                 className={mode === m ? 'active' : ''}
-                onClick={() => { setMode(m); setModeState(m) }}>
+                onClick={() => { setMode(m); setModeState(m); applyAppearance(getProfile(), resolveMode(m)) }}>
                 <span style={{ display: 'block', fontSize: 18, lineHeight: 1.4 }}>{meta.icon}</span>
                 {meta.label}
               </button>
             )
           })}
         </div>
-        <p className="dim" style={{ fontSize: 11.5 }}>
+        <p className="dim" style={{ fontSize: 11.5, marginBottom: 16 }}>
           {MODE_LABELS[mode].hint}
-          {mode === 'system' && ` — currently ${resolveMode('system')}.`}
+          {mode === 'system' ? ` — currently ${resolveMode('system')}. ` : '. '}
+          Saved on this device, so your phone and laptop can differ.
+        </p>
+
+        <p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Accent colour</p>
+        <div className="swatches">
+          {ACCENTS.map((a) => {
+            const on = (p.themeAccent || 'auto') === a.key
+            const col = accentSwatch(a.key, resolveMode(mode), p.gender)
+            return (
+              <button key={a.key} type="button" title={a.name} aria-label={a.name}
+                className={'swatch' + (on ? ' on' : '')}
+                style={{ background: col }}
+                onClick={() => setLook({ themeAccent: a.key })}>
+                {a.key === 'auto' && <span className="sw-auto">A</span>}
+                {on && <span className="sw-tick">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+        <p className="dim" style={{ fontSize: 11.5, marginBottom: 16 }}>
+          {getAccent(p.themeAccent).name}
+          {(p.themeAccent || 'auto') === 'auto' && ' — follows the gender on your profile, which was only ever a guess.'}
+        </p>
+
+        <p className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Background</p>
+        <div className="swatches">
+          {BACKDROPS.map((b) => {
+            const on = (p.themeBackdrop || 'default') === b.key
+            const s = resolveMode(mode) === 'dark' ? b.dark : b.light
+            return (
+              <button key={b.key} type="button" title={b.name} aria-label={b.name}
+                className={'swatch wide' + (on ? ' on' : '')}
+                style={{ background: s.bg, borderColor: s.line }}
+                onClick={() => setLook({ themeBackdrop: b.key })}>
+                <i style={{ background: s.card, borderColor: s.line }} />
+                {on && <span className="sw-tick" style={{ color: resolveMode(mode) === 'dark' ? '#fff' : '#0f1d30' }}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+        <p className="dim" style={{ fontSize: 11.5 }}>
+          {getBackdrop(p.themeBackdrop).name}. Colours follow your account, so they
+          look the same on every device you sign in on.
         </p>
       </section>
 

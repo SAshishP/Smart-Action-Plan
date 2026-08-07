@@ -13,6 +13,10 @@
 export const COMPRESS = {
   detail: { maxSide: 1280, quality: 0.72 },
   shape: { maxSide: 900, quality: 0.65 },
+  // Decoration, not data. These are never analysed, so they are sized for how
+  // they look rather than for what a model could read out of them.
+  cover: { maxSide: 1200, quality: 0.7 },   // the Dashboard hero, full width
+  avatar: { maxSide: 400, quality: 0.75 },  // shown at ~56px, so this is plenty
 }
 
 const DETAIL_SLOT = /^(face|hair)_/

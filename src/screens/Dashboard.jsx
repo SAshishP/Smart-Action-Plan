@@ -89,11 +89,12 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
 
   const doneCount = plan.filter((p) => day.planDone[p.id]).length
 
-  // The hero image. A body shot fills this crop better than a face, which gets
-  // cut awkwardly at the top. Null on day one, and the hero has to look
-  // deliberate empty rather than broken — see the .short fallback.
-  const heroPhoto = profile.photos?.body_front || profile.photos?.body_left
-    || profile.photos?.body_back || profile.photos?.face_front || null
+  // Only the cover the user chose for themselves. It deliberately does NOT
+  // fall back to a body or face photo: those were taken for measurement, in
+  // fitted clothing, under clinical lighting, and nobody wants one greeting
+  // them every morning. No cover means the plain gradient, which is a fine
+  // place to land.
+  const heroPhoto = profile.heroPhoto || null
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0 }
 
   const [pushMsg, setPushMsg] = useState('')
@@ -177,8 +178,8 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
                 background: 'rgba(255,255,255,0.16)', border: '1.5px solid rgba(255,255,255,0.5)',
                 backdropFilter: 'blur(8px)', boxShadow: 'none',
               }}>
-              {profile.photos?.face_front
-                ? <img src={profile.photos.face_front} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {profile.avatar
+                ? <img src={profile.avatar} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : '👤'}
             </button>
           )}

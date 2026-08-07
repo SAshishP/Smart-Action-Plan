@@ -21,6 +21,7 @@ import { withMeasurementSnapshot } from './lib/body.js'
 import Lab from './screens/Lab.jsx'
 import { isOwner } from './lib/owner.js'
 import { applyMode, watchSystem } from './lib/mode.js'
+import { applyAppearance } from './lib/appearance.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere, backfillLocalData, trackEvent } from './lib/cloud.js'
 
@@ -100,13 +101,16 @@ export default function App() {
     )
   }, [profile])
 
-  // Light/dark is a separate axis from the gender accent, and it belongs to the
-  // device rather than the account. Applied once on mount, then kept in step
-  // with the OS for as long as the user leaves it on "system".
+  // Light/dark belongs to the device; the accent and backdrop belong to the
+  // profile. They have to be applied together and in this order, because both
+  // hold a different value per mode and only one of them applies at a time —
+  // so the backdrop has to be re-written every time the mode flips, including
+  // when the OS flips it on its own at sunset.
   useEffect(() => {
-    applyMode()
-    return watchSystem()
-  }, [])
+    const resolved = applyMode()
+    applyAppearance(profile || {}, resolved)
+    return watchSystem((m) => applyAppearance(profile || {}, m))
+  }, [profile])
 
   async function handleSignOut() {
     await signOutEverywhere()
