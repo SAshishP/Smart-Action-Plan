@@ -7,6 +7,7 @@ import { uploadProgressPhoto } from '../lib/cloud.js'
 import { runInitialAnalysis } from '../lib/analysis.js'
 import { pickableConditions } from '../lib/conditions.js'
 import { withMeasurementSnapshot } from '../lib/body.js'
+import { getMode, setMode, resolveMode, MODES, MODE_LABELS } from '../lib/mode.js'
 
 const PHOTO_SLOTS = [
   ['body_front', 'Body F'], ['body_left', 'Body L'], ['body_right', 'Body R'], ['body_back', 'Body B'],
@@ -22,6 +23,7 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
   const [quality, setQuality] = useState({})
   const [openGuide, setOpenGuide] = useState(null)
   const [showRules, setShowRules] = useState(false)
+  const [mode, setModeState] = useState(getMode)
 
   const set = (k) => (e) => setF((o) => ({ ...o, [k]: e.target.value }))
 
@@ -126,6 +128,31 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
       </section>
 
       <section className="card">
+        <h2>🎨 Appearance</h2>
+        <p className="dim small" style={{ marginBottom: 10 }}>
+          Your choice, saved on this device — so your phone and your laptop can
+          differ if you want them to.
+        </p>
+        <div className="seg">
+          {MODES.map((m) => {
+            const meta = MODE_LABELS[m]
+            return (
+              <button key={m} type="button"
+                className={mode === m ? 'active' : ''}
+                onClick={() => { setMode(m); setModeState(m) }}>
+                <span style={{ display: 'block', fontSize: 18, lineHeight: 1.4 }}>{meta.icon}</span>
+                {meta.label}
+              </button>
+            )
+          })}
+        </div>
+        <p className="dim" style={{ fontSize: 11.5 }}>
+          {MODE_LABELS[mode].hint}
+          {mode === 'system' && ` — currently ${resolveMode('system')}.`}
+        </p>
+      </section>
+
+      <section className="card">
         <h2>🩺 Health conditions</h2>
         <p className="dim small" style={{ marginBottom: 10 }}>
           Tap any that apply. These change your calorie and protein targets, filter unsafe
@@ -174,7 +201,7 @@ export default function Profile({ profile, onBack, onSignOut, onProfileUpdate })
         <div className="photo-grid">
           {PHOTO_SLOTS.map(([slot, label]) => {
             const q = quality[slot] || p.photoQuality?.[slot]
-            const dot = q?.level === 'poor' ? '#ff6b81' : q?.level === 'soft' ? '#ffb454' : q?.level === 'good' ? '#7ee2b8' : null
+            const dot = q?.level === 'poor' ? 'var(--bad)' : q?.level === 'soft' ? 'var(--warn)' : q?.level === 'good' ? 'var(--good)' : null
             return (
               <div className="photo-slot" key={slot}>
                 {p.photos?.[slot] ? <img src={p.photos[slot]} alt={label} /> : <span>{label}<br />＋</span>}

@@ -88,6 +88,12 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
     : null
 
   const doneCount = plan.filter((p) => day.planDone[p.id]).length
+
+  // The hero image. A body shot fills this crop better than a face, which gets
+  // cut awkwardly at the top. Null on day one, and the hero has to look
+  // deliberate empty rather than broken — see the .short fallback.
+  const heroPhoto = profile.photos?.body_front || profile.photos?.body_left
+    || profile.photos?.body_back || profile.photos?.face_front || null
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0 }
 
   const [pushMsg, setPushMsg] = useState('')
@@ -158,29 +164,50 @@ export default function Dashboard({ profile, onOpenProfile, onOpenCycle, onOpenR
 
   return (
     <div className="screen with-tabbar">
-      <header className="dash-head">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="date">{dateLabel}</div>
+      {/* The hero. Falls back to a flat deep-navy card when there is no photo
+          yet, which is every user's first day — so the layout has to look
+          deliberate empty, not broken. */}
+      <div className={'hero' + (heroPhoto ? '' : ' short')}>
+        {heroPhoto && <img src={heroPhoto} alt="" />}
+        <div className="hero-badges top-right">
           {onOpenProfile && (
             <button type="button" onClick={onOpenProfile} aria-label="Profile"
-              style={{ width: 40, height: 40, borderRadius: '50%', padding: 0, overflow: 'hidden', background: 'var(--bg-2)', border: '1.5px solid var(--accent)' }}>
+              style={{
+                width: 42, height: 42, borderRadius: '50%', padding: 0, overflow: 'hidden',
+                background: 'rgba(255,255,255,0.16)', border: '1.5px solid rgba(255,255,255,0.5)',
+                backdropFilter: 'blur(8px)', boxShadow: 'none',
+              }}>
               {profile.photos?.face_front
                 ? <img src={profile.photos.face_front} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : '👤'}
             </button>
           )}
         </div>
-        <h1>{greeting()}, {String(profile.name || '').split(' ')[0]}</h1>
-        <span className="badge">{doneCount}/{plan.length} plan items done</span>
-        {game && (
-          <div className="gamebar">
-            <span className="lvl">LV {game.level} · {game.title}</span>
-            <div className="xpbar"><i style={{ width: Math.round(game.progress * 100) + '%' }} /></div>
-            <span className="dim" style={{ fontSize: 11 }}>{game.toNext} XP → {game.nextTitle}</span>
-            {streak > 1 && <span className="chip flame">🔥 {streak}-day streak</span>}
+
+        <div className="hero-body">
+          <div className="script" style={{ marginBottom: 2 }}>{greeting()},</div>
+          <h1 className="display-caps">{String(profile.name || 'there').split(' ')[0]}</h1>
+          <p className="dim small" style={{ marginTop: 8 }}>{dateLabel}</p>
+
+          <div className="chips" style={{ marginTop: 14, marginBottom: 0 }}>
+            <span className="float-badge on-photo">
+              <span className="b-num">{doneCount}/{plan.length}</span> plan done
+            </span>
+            {game && <span className="float-badge on-photo">⭐ LV {game.level}</span>}
+            {streak > 1 && <span className="float-badge on-photo">🔥 {streak} days</span>}
           </div>
-        )}
-      </header>
+        </div>
+      </div>
+
+      {game && (
+        <section className="card overlap">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>{game.title}</span>
+            <span className="dim" style={{ fontSize: 12 }}>{game.toNext} XP → {game.nextTitle}</span>
+          </div>
+          <div className="xpbar"><i style={{ width: Math.round(game.progress * 100) + '%' }} /></div>
+        </section>
+      )}
 
       {(profile.photos?.face_front || profile.photos?.body_front) && !profile.analysis && (
         <div className="consent-box" style={{ marginBottom: 14 }}>

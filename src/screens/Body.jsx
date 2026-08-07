@@ -14,7 +14,7 @@ import { runBodyScan } from '../lib/analysis.js'
 import { runDeepScan, GROUPS, findingsOf, scanConfidence, UnsuitableImage } from '../lib/deepscan.js'
 import { protocolsFor, getSkinProtocol, TEXT_ONLY_PROTOCOLS } from '../lib/skinprotocols.js'
 
-const TONE = { good: '#7ee2b8', warn: '#ffb454', bad: '#ff6b81', neutral: 'var(--text-dim)' }
+const TONE = { good: 'var(--good)', warn: 'var(--warn)', bad: 'var(--bad)', neutral: 'var(--text-dim)' }
 
 // A labelled meter. Used for BMI, body fat, every ratio and every fat region,
 // so the whole report reads as one instrument rather than six.

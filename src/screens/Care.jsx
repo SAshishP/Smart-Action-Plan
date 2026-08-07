@@ -28,7 +28,7 @@ function StepRow({ s, shelf, location, dandruff }) {
           <div className="ex-name">{s.step}</div>
           <div className="dim small" style={{ marginTop: 2 }}>{s.how}</div>
           {have ? (
-            <div className="small" style={{ color: '#7ee2b8', marginTop: 4 }}>✓ Use what you have: {have}</div>
+            <div className="small" style={{ color: 'var(--good)', marginTop: 4 }}>✓ Use what you have: {have}</div>
           ) : (
             <div className="find-links small">
               <a href={nearbyUrl(q, location)} target="_blank" rel="noreferrer">🗺 Nearby stores</a>
@@ -41,7 +41,7 @@ function StepRow({ s, shelf, location, dandruff }) {
   )
 }
 
-const TONE_COLOR = { good: '#7ee2b8', ok: '#ffd166', bad: '#ff6b81', neutral: 'var(--accent)' }
+const TONE_COLOR = { good: 'var(--good)', ok: 'var(--warn)', bad: 'var(--bad)', neutral: 'var(--accent)' }
 
 function AttrRow({ it }) {
   const color = TONE_COLOR[it.tone] || 'var(--accent)'

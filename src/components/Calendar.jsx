@@ -43,7 +43,7 @@ export default function Calendar({ marks = {}, onPick }) {
       <div className="legend" style={{ marginTop: 8, fontSize: 11.5 }}>
         <span><i style={{ background: 'var(--danger)' }} /> Period</span>
         <span><i style={{ background: 'var(--accent)' }} /> Predicted</span>
-        <span><i style={{ background: '#7aa2ff' }} /> Fertile</span>
+        <span><i style={{ background: 'var(--info)' }} /> Fertile</span>
       </div>
     </div>
   )

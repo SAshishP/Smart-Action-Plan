@@ -189,7 +189,7 @@ UNDERTONE: one of ${UNDERTONES.join(' / ')}`,
             <div key={pc.part} style={{ padding: '7px 0' }}>
               <div className="ex-name small">{pc.part}</div>
               <div className="dim small">{pc.idea}</div>
-              {owned && <div className="small" style={{ color: '#7ee2b8' }}>✓ From your wardrobe: {owned.name}</div>}
+              {owned && <div className="small" style={{ color: 'var(--good)' }}>✓ From your wardrobe: {owned.name}</div>}
             </div>
           )
         })}

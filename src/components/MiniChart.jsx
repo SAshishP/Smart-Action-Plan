@@ -3,7 +3,7 @@
 
 const W = 320, H = 130, PADL = 4, PADB = 18, PADT = 14
 
-export default function MiniChart({ data = [], goal, unit = '', color = 'var(--accent)', color2 = '#ffd166', label2 }) {
+export default function MiniChart({ data = [], goal, unit = '', color = 'var(--accent)', color2 = 'var(--warn)', label2 }) {
   const n = data.length || 1
   const maxVal = Math.max(
     goal || 0,

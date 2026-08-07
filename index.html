@@ -3,19 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#0e1420" />
+    <meta name="theme-color" content="#e9edf6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="SAP" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
     <title>SAP — Smart Action Plan</title>
+    <script>
+      /* Set the theme before the first paint. If this waits for React, the app
+         flashes light for a frame and then snaps dark, which looks like a bug
+         and is the single most noticeable thing about a badly-done dark mode.
+         Kept deliberately tiny and dependency-free; lib/mode.js owns the rest. */
+      (function () {
+        try {
+          var saved = localStorage.getItem('sap_mode_v1')
+          var dark = saved === 'dark' || (saved !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-mode', dark ? 'dark' : 'light')
+          document.documentElement.style.background = dark ? '#0e1420' : '#e9edf6'
+          var m = document.querySelector('meta[name="theme-color"]')
+          if (m) m.setAttribute('content', dark ? '#0e1420' : '#e9edf6')
+        } catch (e) {
+          document.documentElement.setAttribute('data-mode', 'light')
+        }
+      })()
+    </script>
   </head>
-  <body style="background:#0e1420">
-    <noscript><div style="color:#f2f5f9;font-family:system-ui;padding:40px;text-align:center">SAP needs JavaScript enabled to run.</div></noscript>
+  <body>
+    <noscript><div style="color:#0f1d30;font-family:system-ui;padding:40px;text-align:center">SAP needs JavaScript enabled to run.</div></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -20,6 +20,7 @@ import { getProfile, saveProfile } from './lib/store.js'
 import { withMeasurementSnapshot } from './lib/body.js'
 import Lab from './screens/Lab.jsx'
 import { isOwner } from './lib/owner.js'
+import { applyMode, watchSystem } from './lib/mode.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere, backfillLocalData, trackEvent } from './lib/cloud.js'
 
@@ -98,6 +99,14 @@ export default function App() {
       g === 'female' ? 'female' : g === 'other' ? 'other' : 'male'
     )
   }, [profile])
+
+  // Light/dark is a separate axis from the gender accent, and it belongs to the
+  // device rather than the account. Applied once on mount, then kept in step
+  // with the OS for as long as the user leaves it on "system".
+  useEffect(() => {
+    applyMode()
+    return watchSystem()
+  }, [])
 
   async function handleSignOut() {
     await signOutEverywhere()

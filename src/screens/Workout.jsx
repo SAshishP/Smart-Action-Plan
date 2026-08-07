@@ -211,8 +211,8 @@ export default function Workout({ profile, onOpenBody }) {
           onPick={(id) => setPicked(id)}
         />
         <div className="legend">
-          <span><i style={{ background: '#ff6b81' }} /> Primary</span>
-          <span><i style={{ background: '#ffd166' }} /> Secondary</span>
+          <span><i style={{ background: 'var(--bad)' }} /> Primary</span>
+          <span><i style={{ background: 'var(--warn)' }} /> Secondary</span>
           <span className="dim">{openEx ? openEx.name : picked ? MUSCLE_NAMES[picked] : 'Tap an exercise below'}</span>
         </div>
       </section>

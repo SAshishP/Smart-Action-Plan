@@ -280,13 +280,13 @@ export default function Diet({ profile, onOpenInventory, onOpenBody }) {
                   <div className="dim small">{MEAL_LABEL[meal]}</div>
                   <div className="ex-name">{r.name}</div>
                   {ateInstead && (
-                    <div className="small" style={{ color: '#7ee2b8' }}>
+                    <div className="small" style={{ color: 'var(--good)' }}>
                       ✓ You ate {ateInstead.name} ({ateInstead.kcal} kcal) instead
                     </div>
                   )}
                   <div className="dim small">
                     {r.kcal} kcal · {r.protein} g protein · ⏱ {r.time} min ·{' '}
-                    <span style={{ color: pm.have === pm.total ? '#7ee2b8' : 'var(--accent)' }}>
+                    <span style={{ color: pm.have === pm.total ? 'var(--good)' : 'var(--accent)' }}>
                       you have {pm.have}/{pm.total}
                     </span>
                   </div>

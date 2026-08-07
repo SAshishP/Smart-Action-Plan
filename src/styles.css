@@ -1,25 +1,102 @@
 /* ============ SAP theme ============ */
+/*
+ * Light, oceanic, layered. Depth comes from shadow and generous radius rather
+ * than from 1px borders, and colour comes mostly from photography — the app
+ * already holds the user's own photos, so the interface stays quiet and lets
+ * them carry it.
+ *
+ * Everything is driven from these variables. Screens should never hardcode a
+ * colour: a literal hex is how a theme rots, and it is why the tone colours
+ * below exist as --good / --warn / --bad instead of being repeated in a dozen
+ * JSX files where they cannot be re-tuned.
+ */
+/*
+ * TWO INDEPENDENT AXES, and keeping them independent is the whole trick:
+ *
+ *   data-theme = male | female | other   → which accent hue (from the profile)
+ *   data-mode  = light | dark            → which surface set (the user's choice)
+ *
+ * A hue needs a different value in each mode: the mint that glows on near-black
+ * reads at about 1.9:1 on white, which is invisible. So each theme declares a
+ * PAIR of hues and the mode picks one. Three themes times two modes is six
+ * combinations from six lines instead of six blocks.
+ */
 :root {
+  /* --- shared across both modes --- */
+  --radius: 22px;
+  --radius-l: 30px;
+  --font-display: 'Sora', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-script: 'Caveat', 'Segoe Script', cursive;
+  --deep: #0d1e33;            /* photo scrims — dark in BOTH modes, by design:
+                                 white text over a photo needs it either way */
+
+  /* --- the accent hue pair, per gender theme --- */
+  --accent-l: #0a7d94;        /* default / male, on light */
+  --accent-d: #2dd4a7;        /* default / male, on dark */
+}
+[data-theme='female'] { --accent-l: #8b3fd4; --accent-d: #c77dff; }
+[data-theme='other']  { --accent-l: #b45309; --accent-d: #ffb454; }
+
+/* ---------------- LIGHT ---------------- */
+:root, [data-mode='light'] {
+  --bg: #e9edf6;
+  --bg-2: #f3f6fb;
+  --card: #ffffff;
+  --line: #e2e8f2;
+  --text: #0f1d30;
+  --text-dim: #6b7c94;
+
+  --accent: var(--accent-l);
+  --accent-ink: #ffffff;                    /* text sitting ON the accent */
+  --accent-bright: var(--accent-d);         /* the accent over dark photos */
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+
+  --good: #0f8f6b;
+  --warn: #b5730a;
+  --bad: #d63b56;
+  --info: #3f63d0;
+
+  --glass: rgba(255, 255, 255, 0.88);       /* tab bar */
+  --shadow-s: 0 2px 8px rgba(16, 32, 56, 0.05);
+  --shadow-m: 0 10px 26px rgba(16, 32, 56, 0.08);
+  --shadow-l: 0 20px 48px rgba(16, 32, 56, 0.14);
+}
+
+/* ---------------- DARK ---------------- */
+[data-mode='dark'] {
   --bg: #0e1420;
   --bg-2: #151d2e;
   --card: #1a2438;
   --line: #263349;
   --text: #f2f5f9;
   --text-dim: #8fa0b8;
-  --accent: #2dd4a7;          /* default / male: mint teal */
-  --accent-soft: rgba(45, 212, 167, 0.14);
-  --danger: #ff6b81;
-  --radius: 18px;
-  --font-display: 'Sora', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
+
+  --accent: var(--accent-d);
+  --accent-ink: #0b1018;
+  --accent-bright: var(--accent-d);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+
+  --good: #7ee2b8;
+  --warn: #ffb454;
+  --bad: #ff6b81;
+  --info: #7aa2ff;
+
+  --glass: rgba(14, 20, 32, 0.92);
+  /* Shadows do almost nothing on a dark background, so depth there comes from
+     a hairline border instead — see .card below. */
+  --shadow-s: none;
+  --shadow-m: 0 10px 26px rgba(0, 0, 0, 0.35);
+  --shadow-l: 0 20px 48px rgba(0, 0, 0, 0.45);
 }
-[data-theme='female'] {
-  --accent: #c77dff;          /* female: orchid */
-  --accent-soft: rgba(199, 125, 255, 0.16);
-}
-[data-theme='other'] {
-  --accent: #ffb454;          /* neutral: amber */
-  --accent-soft: rgba(255, 180, 84, 0.16);
+
+:root { --danger: var(--bad); }
+
+/* Older Safari has no color-mix. Fall back to a flat tint rather than letting
+   --accent-soft resolve to nothing and render chips with no background. */
+@supports not (color: color-mix(in srgb, red 10%, transparent)) {
+  :root, [data-mode='light'] { --accent-soft: rgba(10, 125, 148, 0.10); }
+  [data-mode='dark'] { --accent-soft: rgba(45, 212, 167, 0.16); }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -41,10 +118,31 @@ body {
 }
 
 h1, h2, h3 { font-family: var(--font-display); }
-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
-h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.12; }
+h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.01em; }
 .dim { color: var(--text-dim); }
 .small { font-size: 13px; }
+
+/* The handwritten accent. Used for the personal register — a greeting, a
+   place, an encouragement — never for anything the user must read carefully.
+   Script at small sizes is decoration, so it never carries load-bearing text. */
+.script {
+  font-family: var(--font-script);
+  font-size: 1.45em;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Heavy condensed caps, the counterweight to the script. */
+.display-caps {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  font-size: 34px;
+}
 
 /* ---- splash ---- */
 .splash {
@@ -67,10 +165,11 @@ h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
 /* ---- cards & inputs ---- */
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 18px;
   margin-bottom: 14px;
+  box-shadow: var(--shadow-s);
 }
 label.field { display: block; margin-bottom: 12px; }
 label.field span { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
@@ -96,23 +195,132 @@ button {
   font-weight: 700;
   font-size: 16px;
   border: none;
-  border-radius: 14px;
-  padding: 14px 18px;
+  border-radius: 99px;         /* fully pill, matching the badges */
+  padding: 15px 18px;
   cursor: pointer;
   background: var(--accent);
-  color: #0b1018;
+  color: var(--accent-ink);
   width: 100%;
-  transition: transform 0.08s ease;
+  box-shadow: var(--shadow-s);
+  transition: transform 0.08s ease, box-shadow 0.16s ease;
 }
-button:active { transform: scale(0.97); }
+button:active { transform: scale(0.97); box-shadow: none; }
 button.ghost {
-  background: transparent;
-  color: var(--text-dim);
+  background: var(--card);
+  color: var(--text);
   border: 1px solid var(--line);
+  box-shadow: none;
 }
 button.mini {
   width: auto; padding: 8px 14px; font-size: 14px; border-radius: 10px;
 }
+
+/* ============ signature components ============ */
+
+/* A full-bleed photo card with the text sitting in a gradient scrim at the
+   bottom. The scrim is not decoration — white text straight onto a photo is
+   unreadable the moment the photo is bright, and a health app cannot have a
+   headline that disappears depending on the weather that day. */
+.hero {
+  position: relative;
+  border-radius: var(--radius-l);
+  overflow: hidden;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-shadow: var(--shadow-l);
+  background: var(--deep);
+  margin-bottom: 16px;
+  isolation: isolate;
+}
+.hero > img {
+  position: absolute; inset: 0; z-index: -2;
+  width: 100%; height: 100%; object-fit: cover;
+}
+.hero::after {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(180deg,
+    rgba(13, 30, 51, 0.10) 0%,
+    rgba(13, 30, 51, 0.05) 34%,
+    rgba(13, 30, 51, 0.78) 82%,
+    rgba(13, 30, 51, 0.92) 100%);
+}
+.hero-body { padding: 20px; color: #fff; }
+.hero-body h1, .hero-body h2 { color: #fff; }
+.hero-body .dim { color: rgba(255, 255, 255, 0.75); }
+.hero-body .script { color: var(--accent-bright); }
+
+/* The sweeping edge from the reference. Elliptical radii rather than a
+   clip-path so it survives on older Safari, which the iPhone install path
+   makes a real constraint rather than a hypothetical one. */
+.hero.sweep-right { border-radius: var(--radius-l) 90px 90px var(--radius-l) / var(--radius-l) 160px 160px var(--radius-l); }
+.hero.sweep-left { border-radius: 90px var(--radius-l) var(--radius-l) 90px / 160px var(--radius-l) var(--radius-l) 160px; }
+.hero.tall { min-height: 380px; }
+.hero.short { min-height: 170px; }
+
+/* Display type filled with a photograph. Set --img inline:
+     <h1 className="img-text" style={{'--img': `url(${photo})`}}>Body</h1>
+   The colour fallback matters: if background-clip:text is unsupported the
+   text must still be readable rather than invisible. */
+.img-text {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  color: var(--accent);
+}
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .img-text {
+    background-image: var(--img);
+    background-size: cover;
+    background-position: center 30%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* Small pill that floats over a photo or between cards. */
+.float-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--card); color: var(--text);
+  border-radius: 99px; padding: 9px 15px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow-m);
+  white-space: nowrap;
+}
+.float-badge .b-num { font-family: var(--font-display); font-weight: 800; }
+.float-badge.on-photo {
+  background: rgba(13, 30, 51, 0.62); color: #fff;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: none;
+}
+.float-badge.accent { background: var(--accent); color: var(--accent-ink); }
+
+/* Badges parked in the corner of a hero. */
+.hero-badges {
+  position: absolute; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap;
+}
+.hero-badges.top-left { top: 16px; left: 16px; }
+.hero-badges.top-right { top: 16px; right: 16px; }
+
+/* Cards that overlap the thing above them, which is what gives the reference
+   its depth. The negative margin is deliberate; the z-index keeps it above. */
+.overlap { margin-top: -34px; position: relative; z-index: 2; }
+
+/* Asymmetric photo pair, as in the reference's lower-left block. */
+.split-pair { display: grid; grid-template-columns: 1.35fr 1fr; gap: 12px; margin-bottom: 16px; }
+.split-pair .hero { margin-bottom: 0; min-height: 180px; }
+
+/* Section header with a trailing filter/action on the right. */
+.section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin: 22px 0 12px;
+}
+.section-head h2 { margin-bottom: 0; }
+.section-head .more { font-size: 13px; color: var(--text-dim); font-weight: 600; }
 
 /* ---- onboarding ---- */
 .progressbar {
@@ -154,8 +362,8 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
 }
 .lab-stage img { display: block; width: 100%; height: auto; pointer-events: none; }
 .lab-box { position: absolute; border-width: 2px; border-style: solid; pointer-events: none; }
-.lab-target { border-color: #ff6b81; background: rgba(255,107,129,0.14); }
-.lab-ref { border-color: #7ee2b8; background: rgba(126,226,184,0.14); }
+.lab-target { border-color: var(--bad); background: rgba(214,59,86,0.14); }
+.lab-ref { border-color: var(--good); background: rgba(15,143,107,0.16); }
 .lab-live { border-color: #fff; border-style: dashed; background: rgba(255,255,255,0.10); }
 .lab-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
 .lab-table th, .lab-table td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--line); }
@@ -225,7 +433,7 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
   display: flex; gap: 8px; justify-content: center;
   max-width: 480px; margin: 0 auto;
   padding: 10px 16px calc(env(safe-area-inset-bottom) + 10px);
-  background: rgba(14, 20, 32, 0.92);
+  background: var(--glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--line);
@@ -247,7 +455,7 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
   word-break: break-word;
 }
 .bubble.user {
-  align-self: flex-end; background: var(--accent); color: #0b1018;
+  align-self: flex-end; background: var(--accent); color: var(--accent-ink);
   border-bottom-right-radius: 6px;
 }
 .bubble.model {
@@ -297,7 +505,7 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
 .ex-name { font-weight: 600; }
 .ex-body { padding: 0 0 14px 34px; }
 .ex-body ol { margin: 6px 0 10px 18px; display: grid; gap: 4px; }
-.ex-body .ok { color: #7ee2b8; margin-bottom: 4px; }
+.ex-body .ok { color: var(--good); margin-bottom: 4px; }
 .ex-body .no { color: var(--danger); margin-bottom: 8px; }
 
 .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
@@ -362,7 +570,15 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
 .tabbar button { white-space: nowrap; font-size: 10.5px; padding: 9px 0; }
 
 /* ---- Phase 7: analysis + 7-tab bar ---- */
-.tabbar button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 0; }
+.tabbar button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 0;
+  /* The base button rule gives every button a pill radius and a drop shadow.
+     A shadow paints around the border-box even when the background is
+     transparent, so without this each tab icon sits in its own floating white
+     circle. Same reason chips below opt out. */
+  border-radius: 14px;
+  box-shadow: none;
+}
 .tabbar button .ic { font-size: 17px; line-height: 1; }
 .tabbar button .lbl { font-size: 9px; display: none; }
 .tabbar button.active .lbl { display: block; }
@@ -383,7 +599,7 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
 }
 .xpbar { flex: 1; min-width: 90px; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .xpbar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width 0.4s ease; }
-.chip.flame { border-color: #ff8c42; color: #ffb454; }
+.chip.flame { border-color: var(--warn); color: var(--warn); }
 
 /* inventory */
 .inv-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); }
@@ -392,8 +608,8 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
   width: 42px; padding: 8px 0; border-radius: 10px; font-size: 15px;
   background: var(--bg-2); border: 1px solid var(--line); color: var(--text-dim);
 }
-.pill.on-have { background: rgba(126, 226, 184, 0.16); border-color: #7ee2b8; }
-.pill.on-need { background: rgba(122, 162, 255, 0.14); border-color: #7aa2ff; }
+.pill.on-have { background: rgba(15,143,107,0.12); border-color: var(--good); }
+.pill.on-need { background: rgba(63,99,208,0.12); border-color: var(--info); }
 .shop-links { display: flex; gap: 12px; }
 .shop-links a { color: var(--accent); text-decoration: none; font-size: 13px; }
 
@@ -428,7 +644,7 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
 .cal-day.today { border-color: var(--text-dim); border-width: 2px; }
 .cal-day.m-period { background: var(--danger); color: #2a0a10; border-color: var(--danger); }
 .cal-day.m-predicted { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-.cal-day.m-fertile { background: rgba(122,162,255,0.16); border-color: #7aa2ff; color: #9db8ff; }
+.cal-day.m-fertile { background: rgba(63,99,208,0.12); border-color: var(--info); color: var(--info); }
 
 /* ---- calorie summary ---- */
 .cal-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
@@ -448,9 +664,53 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
    level too, so they graduate to global here. Existing screens that already
    wrote "small no" outside an .ex-body pick up the intended colour as a
    side-effect — which is what they were always reaching for. */
-.ok { color: #7ee2b8; }
+.ok { color: var(--good); }
 .no { color: var(--danger); }
 .chip-add.chip-on { outline: none; background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .attr-list .progressbar { background: var(--line); }
 /* 10 tabs on narrow phones: let buttons shrink past their content box. */
 .tabbar button { min-width: 0; }
+
+
+/* ---- dark-mode depth ----
+   Shadows are near-invisible on a dark background, so the separation that
+   shadow provides in light mode comes from a hairline border here instead.
+   Without this, every card melts into the page. */
+[data-mode='dark'] .card,
+[data-mode='dark'] .tracker,
+[data-mode='dark'] .ex-card { border-color: var(--line); }
+[data-mode='dark'] .hero { box-shadow: var(--shadow-l); }
+[data-mode='dark'] .float-badge { border: 1px solid var(--line); }
+[data-mode='dark'] button.ghost { background: transparent; color: var(--text-dim); }
+
+/* ---- button-shaped things that must not inherit the hero pill treatment ----
+   The base `button` rule is tuned for a primary call to action: pill radius,
+   drop shadow, full width. Anything small and inline — a chip, a segmented
+   control, a stepper — needs the shape without the lift, or the screen fills
+   with floating ovals. */
+.chip, button.chip, .seg button, .stepper button, .pill,
+.photo-slot-btn, .attach-btn, .todo-row .del {
+  box-shadow: none;
+}
+.seg button { border-radius: 14px; }
+.stepper button { border-radius: 12px; }
+button.chip, .chip { border-radius: 99px; }
+
+/* Chips flow inline. `button { width: 100% }` had been stretching every chip
+   to a full-width row — the `margin: 3px 4px 3px 0` on .chip-add shows they
+   were always meant to wrap as pills, and a screen of 23 stacked full-width
+   condition buttons is a wall rather than a picker. */
+button.chip, button.chip-add {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+/* Segmented control, used by the appearance toggle. */
+.seg button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
