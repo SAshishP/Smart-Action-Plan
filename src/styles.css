@@ -146,6 +146,21 @@ button.photo-slot-btn { border: 0; padding: 0; width: 30px; margin: 0; }
   position: absolute; top: 6px; right: 6px; width: 10px; height: 10px;
   border-radius: 50%; z-index: 2; box-shadow: 0 0 0 2px rgba(10,15,25,0.55);
 }
+
+/* ---- Region Lab (owner-only) ---- */
+.lab-stage {
+  position: relative; border-radius: 12px; overflow: hidden;
+  background: var(--bg-2); touch-action: none; user-select: none; cursor: crosshair;
+}
+.lab-stage img { display: block; width: 100%; height: auto; pointer-events: none; }
+.lab-box { position: absolute; border-width: 2px; border-style: solid; pointer-events: none; }
+.lab-target { border-color: #ff6b81; background: rgba(255,107,129,0.14); }
+.lab-ref { border-color: #7ee2b8; background: rgba(126,226,184,0.14); }
+.lab-live { border-color: #fff; border-style: dashed; background: rgba(255,255,255,0.10); }
+.lab-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
+.lab-table th, .lab-table td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--line); }
+.lab-table th:first-child, .lab-table td:first-child { text-align: left; }
+.lab-table th { color: var(--text-dim); font-weight: 600; font-size: 11.5px; }
 .consent-box {
   background: var(--accent-soft); border: 1px solid var(--accent);
   border-radius: var(--radius); padding: 16px; font-size: 14px; line-height: 1.55;

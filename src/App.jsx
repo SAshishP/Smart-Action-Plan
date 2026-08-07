@@ -18,6 +18,8 @@ import Chat from './screens/Chat.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { getProfile, saveProfile } from './lib/store.js'
 import { withMeasurementSnapshot } from './lib/body.js'
+import Lab from './screens/Lab.jsx'
+import { isOwner } from './lib/owner.js'
 import { supabase, cloudReady } from './lib/supabase.js'
 import { pullProfile, uploadInitialPhotos, signOutEverywhere, backfillLocalData, trackEvent } from './lib/cloud.js'
 
@@ -103,6 +105,9 @@ export default function App() {
     setTab('home')
   }
 
+  // Owner-only surfaces. A UI switch, not a security boundary — see owner.js.
+  const owner = isOwner(profile, session)
+
   if (!splashDone) return <Splash onDone={() => setSplashDone(true)} />
 
   if (cloudReady) {
@@ -142,6 +147,7 @@ export default function App() {
       {tab === 'cycle' && <Cycle profile={profile} onProfileUpdate={setProfile} />}
       {tab === 'routine' && <Routine profile={profile} onBack={() => setTab(prevTab)} onProfileUpdate={setProfile} />}
       {tab === 'profile' && <Profile profile={profile} onBack={() => setTab(prevTab)} onSignOut={cloudReady ? handleSignOut : null} onProfileUpdate={setProfile} />}
+      {tab === 'lab' && owner && <Lab profile={profile} onBack={() => setTab(prevTab)} onProfileUpdate={setProfile} />}
       {tab === 'ai' && <Chat profile={profile} />}
       </ErrorBoundary>
       <nav className="tabbar">
@@ -156,6 +162,11 @@ export default function App() {
           ['body', '📐', 'Body'],
           ['stats', '📊', 'Stats'],
           ...(cloudReady ? [['ai', '✨', 'AI']] : []),
+          // Owner-only measurement tool. Kept out of the user-facing app while
+          // it is being evaluated. See owner.js — this hides the tab, it does
+          // not secure it, and it is only safe to gate this way because the
+          // screen touches nothing but the current user's own on-device photos.
+          ...(owner ? [['lab', '🧪', 'Lab']] : []),
         ].map(([id, ic, lbl]) => (
           <button key={id} type="button" className={tab === id ? 'active' : ''}
             aria-label={lbl} onClick={() => setTab(id)}>
