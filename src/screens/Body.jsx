@@ -86,6 +86,7 @@ export default function Body({ profile, onBack, onOpenProfile, onProfileUpdate }
   const deep = p.deepScan || null
   const deepConf = useMemo(() => (deep ? scanConfidence(deep) : { pct: 0, rated: 0, total: 0 }), [deep])
   const deepProtocols = useMemo(() => (deep ? protocolsFor(findingsOf(deep)) : []), [deep])
+  const textOnly = useMemo(() => TEXT_ONLY_PROTOCOLS.map(getSkinProtocol).filter(Boolean), [])
   const comp = completeness(p)
 
   function apply(patch, note) {
@@ -725,36 +726,41 @@ export default function Body({ profile, onBack, onOpenProfile, onProfileUpdate }
           </>
         )}
 
-        {/* Guidance SAP will never ask for a photo of. Opt-in, never surfaced
-            by a scan finding, and never shown unprompted. */}
-        <button className="ghost" type="button" style={{ marginTop: 12 }}
-          onClick={() => setShowTextOnly(!showTextOnly)}>
-          {showTextOnly ? 'Close' : 'Other concerns — no photo involved ›'}
-        </button>
-        {showTextOnly && (
-          <div style={{ marginTop: 10 }}>
-            <p className="dim small" style={{ marginBottom: 8 }}>
-              These are common and SAP has guidance for them, but it will never ask you to
-              photograph the area and cannot analyse it. The advice below is the whole feature.
-            </p>
-            {TEXT_ONLY_PROTOCOLS.map((k) => getSkinProtocol(k)).filter(Boolean).map((p) => (
-              <Collapse
-                key={p.key}
-                title={`${p.icon} ${p.name}`}
-                sub={p.timeline}
-                open={openProto === p.key}
-                onToggle={() => setOpenProto(openProto === p.key ? null : p.key)}
-              >
-                <p className="small"><strong>What it actually is.</strong> {p.what}</p>
-                <p className="small" style={{ marginTop: 12 }}><strong>What genuinely helps</strong></p>
-                {p.helps.map((h, i) => <p key={i} className="small ok" style={{ marginBottom: 4 }}>✓ {h}</p>)}
-                <p className="small" style={{ marginTop: 12 }}><strong>What does nothing</strong></p>
-                {p.doesNothing.map((h, i) => <p key={i} className="small no" style={{ marginBottom: 4 }}>✗ {h}</p>)}
-                <p className="small" style={{ marginTop: 12 }}>⏳ {p.timeline}</p>
-                <p className="small" style={{ marginTop: 6, color: 'var(--accent)' }}>🩺 {p.doctor}</p>
-              </Collapse>
-            ))}
-          </div>
+        {/* Opt-in guidance for findings no photo can produce. The section
+            hides itself when there is nothing in it, rather than offering a
+            button that opens onto an empty panel. */}
+        {textOnly.length > 0 && (
+          <>
+            <button className="ghost" type="button" style={{ marginTop: 12 }}
+              onClick={() => setShowTextOnly(!showTextOnly)}>
+              {showTextOnly ? 'Close' : 'Other concerns — no photo involved ›'}
+            </button>
+            {showTextOnly && (
+              <div style={{ marginTop: 10 }}>
+                <p className="dim small" style={{ marginBottom: 8 }}>
+                  SAP has guidance for these but cannot analyse them from a photo, and will
+                  never ask you for one. The advice below is the whole feature.
+                </p>
+                {textOnly.map((p) => (
+                  <Collapse
+                    key={p.key}
+                    title={`${p.icon} ${p.name}`}
+                    sub={p.timeline}
+                    open={openProto === p.key}
+                    onToggle={() => setOpenProto(openProto === p.key ? null : p.key)}
+                  >
+                    <p className="small"><strong>What it actually is.</strong> {p.what}</p>
+                    <p className="small" style={{ marginTop: 12 }}><strong>What genuinely helps</strong></p>
+                    {p.helps.map((h, i) => <p key={i} className="small ok" style={{ marginBottom: 4 }}>✓ {h}</p>)}
+                    <p className="small" style={{ marginTop: 12 }}><strong>What does nothing</strong></p>
+                    {p.doesNothing.map((h, i) => <p key={i} className="small no" style={{ marginBottom: 4 }}>✗ {h}</p>)}
+                    <p className="small" style={{ marginTop: 12 }}>⏳ {p.timeline}</p>
+                    <p className="small" style={{ marginTop: 6, color: 'var(--accent)' }}>🩺 {p.doctor}</p>
+                  </Collapse>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
 

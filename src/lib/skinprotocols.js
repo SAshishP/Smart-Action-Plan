@@ -111,59 +111,6 @@ export const SKIN_PROTOCOLS = [
       'laser at a proper clinic is genuinely the definitive answer — see a ' +
       'dermatologist rather than a salon.',
   }),
-  P('ingrownbikini', 'Bikini-line ingrown hairs & folliculitis', '🩲', {
-    what:
-      'SAP will never ask you to photograph this area and never analyses a ' +
-      'photo of it. This is written guidance only, on purpose, and that is not ' +
-      'us being squeamish — it is the correct way to handle it. The mechanism ' +
-      'is the same as anywhere else on the body, but the bikini line has coarse ' +
-      'curly hair, constant friction from underwear and clothing, warmth and ' +
-      'sweat, so it gets more ingrowns, more folliculitis and more of the dark ' +
-      'marks that follow. It is extremely common and almost nobody talks about ' +
-      'it, which is why so much of the advice out there is dangerous.',
-    helps: [
-      'Trim rather than shave wherever you can. Most of the problem is a sharp ' +
-        'cut end sitting below skin level',
-      'If you shave: fresh blade, warm water for a few minutes first, with the ' +
-        'grain, no stretching the skin, no going back over the same spot',
-      'Wait 48 hours after hair removal, then a salicylic acid pad or a ' +
-        'glycolic lotion 2–3 times a week on the outer skin only — never on ' +
-        'mucosa',
-      'Loose cotton underwear, and get out of damp gym clothes immediately. ' +
-        'Sweat plus friction plus occlusion is what turns an ingrown into ' +
-        'folliculitis',
-      'A warm compress for 10 minutes, twice a day, on an active bump',
-      'A benzoyl peroxide 5% wash a couple of times a week if you get recurrent ' +
-        'pustules',
-      'Laser hair removal is the one genuinely permanent fix, and for chronic ' +
-        'cases it is cheaper than years of everything else',
-      'Waxing helps some people and makes it worse for others — you will only ' +
-        'find out by trying it on a small area',
-    ],
-    doesNothing: [
-      'Digging with tweezers or a needle. This causes infection and permanent ' +
-        'dark marks, and it is the single worst thing on this page',
-      'Shaving daily to keep it smooth',
-      'Harsh scrubs and exfoliating mitts on an inflamed area',
-      'Skin-lightening creams bought online for the dark marks. Many contain ' +
-        'undeclared steroids, hydroquinone or mercury, the skin here is thin, and ' +
-        'several of these products are illegal for genuinely good reasons',
-      '\'Feminine hygiene\' washes — the area does not need them and they ' +
-        'irritate',
-    ],
-    timeline:
-      'An individual bump settles in 5–10 days. Changing hair-removal technique ' +
-      'shows over 4–8 weeks. The dark marks take 3–12 months and fade whether ' +
-      'or not you buy anything for them.',
-    doctor:
-      'A lump that keeps coming back in the same place, painful lumps in the ' +
-      'groin, recurring boils, or any tunnelling and scarring — that pattern ' +
-      'can be hidradenitis suppurativa. It is a real medical condition with ' +
-      'real treatment and it is routinely dismissed for years before anyone ' +
-      'names it. Also see someone for any sore that does not heal, an unusual ' +
-      'growth, or pain during sex or urination. Those are not cosmetic ' +
-      'questions, and a doctor has seen it a thousand times before.',
-  }),
   P('underarmdark', 'Underarm darkness', '🙌', {
     what:
       'Almost never dirt and almost never a hygiene failure, whatever the ' +
@@ -658,11 +605,14 @@ export const ATTR_PROTOCOL = {
   puffiness: 'undereye',
 }
 
-// Protocols with no photo attribute behind them, on purpose. Intimate-area
-// concerns are real and people genuinely want help with them, but this app
-// never asks for a photo of that area — the guidance is offered as text the
-// user opts into reading instead.
-export const TEXT_ONLY_PROTOCOLS = ['ingrownbikini']
+// Protocols with no photo attribute behind them — guidance the user opts into
+// reading rather than anything a scan surfaces.
+//
+// Currently empty. It stays as an export because the distinction is real and
+// the Body screen's rendering path is worth keeping: a finding that no photo
+// can produce needs somewhere to live that is not the scan results. Add a key
+// here and it appears under its own opt-in section.
+export const TEXT_ONLY_PROTOCOLS = []
 
 // Everything worth showing for a set of scan findings, worst first.
 // findings: { key -> { value, note } } from deepscan.js
